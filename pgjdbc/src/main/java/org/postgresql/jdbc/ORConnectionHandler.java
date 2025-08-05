@@ -409,8 +409,10 @@ public class ORConnectionHandler {
     }
 
     private void getLoginMsg() throws SQLException, IOException {
-        orStream.receiveInteger4();
-        orStream.receiveInteger4();
+        int sessionId = orStream.receiveInteger4();
+        orStream.setSessionId(sessionId);
+        int sessionNumber = orStream.receiveInteger4();
+        orStream.setSessionNumber(sessionNumber);
         orStream.receiveInteger4();
         int charsetId = orStream.receiveInteger4();
         if (charsetId == 0) {

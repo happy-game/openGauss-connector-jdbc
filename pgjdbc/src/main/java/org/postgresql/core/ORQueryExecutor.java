@@ -89,5 +89,13 @@ public interface ORQueryExecutor {
      * @throws SQLException if a database access error occurs
      * @throws IOException if an I/O error occurs
      */
-    void fetch(ORCachedQuery cachedQuery) throws SQLException, IOException ;
+    void fetch(ORCachedQuery cachedQuery) throws SQLException, IOException;
+
+    /**
+     * cancel
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws SQLException if a database access error occurs
+     */
+    void cancel() throws IOException, SQLException;
 }

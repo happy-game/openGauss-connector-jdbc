@@ -595,7 +595,7 @@ public class Driver implements java.sql.Driver {
             simpleUrl = url.substring(0, addressEnd);
         }
         ConnectionManager.getInstance().setCluster(props);
-        return new ORConnection(hostSpecs(props), props, simpleUrl);
+        return new ORConnection(hostSpecs(props), user(props), props, simpleUrl);
     }
 
     /**

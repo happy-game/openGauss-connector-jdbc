@@ -67,17 +67,23 @@ public class ORConnection implements ORBaseConnection {
     private String enabledCipherSuites;
     private boolean isOnlySSL;
     private HostSpec hostSpec;
+    private String url;
+    private String user;
+    private boolean isReadOnly = false;
+    private String catalog;
 
     /**
      * connection constructor
      *
      * @param hostsInfo hosts info
+     * @param user user
      * @param info properties
      * @param url url
      * @throws SQLException if a database access error occurs
      * @throws IOException if an I/O error occurs
      */
-    public ORConnection(HostSpec[] hostsInfo, Properties info, String url) throws SQLException, IOException {
+    public ORConnection(HostSpec[] hostsInfo, String user, Properties info, String url)
+            throws SQLException, IOException {
         try {
             if (info.getProperty("fetchsize") != null) {
                 fetchSize = Integer.parseInt(info.getProperty("fetchsize"));
@@ -88,7 +94,9 @@ public class ORConnection implements ORBaseConnection {
         } catch (NumberFormatException e) {
             throw new SQLException("fetchsize value error: " + e.getMessage());
         }
+        this.url = url;
         this.properties = info;
+        this.user = user;
         this.isSsl = Boolean.valueOf(info.getProperty("ssl", "true"));
         this.enabledCipherSuites = info.getProperty("enabledCipherSuites", "");
         this.isOnlySSL = Boolean.valueOf(info.getProperty("onlySSL", "false"));
@@ -113,6 +121,15 @@ public class ORConnection implements ORBaseConnection {
     @Override
     public HostSpec getHostSpec() {
         return hostSpec;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    @Override
+    public String getUrl() {
+        return url;
     }
 
     @Override
@@ -184,6 +201,7 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public void setCatalog(String catalog) {
+        this.catalog = catalog;
     }
 
     @Override
@@ -203,6 +221,7 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public void setReadOnly(boolean isReadOnly) {
+        this.isReadOnly = isReadOnly;
     }
 
     @Override
@@ -212,7 +231,7 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public boolean isReadOnly() {
-        return false;
+        return isReadOnly;
     }
 
     @Override
@@ -270,7 +289,7 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public String getCatalog() {
-        return null;
+        return catalog;
     }
 
     @Override

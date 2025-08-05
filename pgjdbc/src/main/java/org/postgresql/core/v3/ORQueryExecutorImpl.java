@@ -126,18 +126,32 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
 
     @Override
     public synchronized void commit() throws IOException, SQLException {
-        ORPackageHead commitPackageHead = new ORPackageHead();
-        commitPackageHead.setExecCmd((byte) ORRequestCommand.COMMIT);
-        transactionHandle(commitPackageHead);
-        processResults(null, commitPackageHead);
+        orStream.getLock().lock();
+        try {
+            ORPackageHead commitPackageHead = new ORPackageHead();
+            commitPackageHead.setExecCmd((byte) ORRequestCommand.COMMIT);
+            transactionHandle(commitPackageHead);
+            processResults(null, commitPackageHead);
+        } finally {
+            if (orStream.getLock().isHeldByCurrentThread()) {
+                orStream.getLock().unlock();
+            }
+        }
     }
 
     @Override
     public synchronized void rollback() throws IOException, SQLException {
-        ORPackageHead rollbackPackageHead = new ORPackageHead();
-        rollbackPackageHead.setExecCmd((byte) ORRequestCommand.ROLLBACK);
-        transactionHandle(rollbackPackageHead);
-        processResults(null, rollbackPackageHead);
+        orStream.getLock().lock();
+        try {
+            ORPackageHead rollbackPackageHead = new ORPackageHead();
+            rollbackPackageHead.setExecCmd((byte) ORRequestCommand.ROLLBACK);
+            transactionHandle(rollbackPackageHead);
+            processResults(null, rollbackPackageHead);
+        } finally {
+            if (orStream.getLock().isHeldByCurrentThread()) {
+                orStream.getLock().unlock();
+            }
+        }
     }
 
     @Override
@@ -145,6 +159,7 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
         if (isClosed) {
             return;
         }
+        orStream.getLock().lock();
         try {
             ORPackageHead closePackageHead = new ORPackageHead();
             closePackageHead.setExecCmd((byte) ORRequestCommand.LOGOUT);
@@ -152,6 +167,10 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
             orStream.close();
         } catch (IOException ioe) {
             LOGGER.trace("Discarding IOException on close:", ioe);
+        } finally {
+            if (orStream.getLock().isHeldByCurrentThread()) {
+                orStream.getLock().unlock();
+            }
         }
         isClosed = true;
     }
@@ -168,18 +187,51 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
 
     @Override
     public void fetch(ORCachedQuery cachedQuery) throws SQLException, IOException {
-        ORPackageHead fetchRowPackageHead = new ORPackageHead();
-        fetchRowPackageHead.setExecCmd((byte) ORRequestCommand.FETCH);
-        fetchRowPackageHead.setRequestCount(orStream.addRequestCount());
-        byte[] headBytes = getHeadBytes(fetchRowPackageHead);
-        orStream.sendInteger4(PACKAGE_HEAD_SIZE + 4);
-        orStream.send(headBytes);
-        short statId = (short) cachedQuery.getCtStatement().getMark();
-        orStream.sendInteger2(statId);
-        orStream.sendChar(0);
-        orStream.sendChar(0);
-        orStream.flush();
-        processResults(cachedQuery, fetchRowPackageHead);
+        orStream.getLock().lock();
+        try {
+            ORPackageHead fetchRowPackageHead = new ORPackageHead();
+            fetchRowPackageHead.setExecCmd((byte) ORRequestCommand.FETCH);
+            fetchRowPackageHead.setRequestCount(orStream.addRequestCount());
+            byte[] headBytes = getHeadBytes(fetchRowPackageHead);
+            orStream.sendInteger4(PACKAGE_HEAD_SIZE + 4);
+            orStream.send(headBytes);
+            short statId = (short) cachedQuery.getCtStatement().getMark();
+            orStream.sendInteger2(statId);
+            orStream.sendChar(0);
+            orStream.sendChar(0);
+            orStream.flush();
+            processResults(cachedQuery, fetchRowPackageHead);
+        } finally {
+            if (orStream.getLock().isHeldByCurrentThread()) {
+                orStream.getLock().unlock();
+            }
+        }
+    }
+
+    @Override
+    public void cancel() throws IOException, SQLException {
+        orStream.getLock().lock();
+        try {
+            ORPackageHead cancelPackageHead = new ORPackageHead();
+            cancelPackageHead.setExecCmd((byte) ORRequestCommand.CANCEL);
+            cancelPackageHead.setRequestCount(orStream.addRequestCount());
+            byte[] headBytes = getHeadBytes(cancelPackageHead);
+            int sessionIdLen = 4;
+            int requestCountLen = 4;
+            int sessionNumberLen = 4;
+            int dataLen = PACKAGE_HEAD_SIZE + sessionIdLen + requestCountLen + sessionNumberLen;
+            orStream.sendInteger4(dataLen);
+            orStream.send(headBytes);
+            orStream.sendInteger4(orStream.getSessionId());
+            orStream.sendInteger4(orStream.getRequestCount());
+            orStream.sendInteger4(orStream.getSessionNumber());
+            orStream.flush();
+            processResults(null, cancelPackageHead);
+        } finally {
+            if (orStream.getLock().isHeldByCurrentThread()) {
+                orStream.getLock().unlock();
+            }
+        }
     }
 
     private void transactionHandle(ORPackageHead packageHead) throws IOException {
@@ -192,19 +244,26 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
 
     @Override
     public void freeStatement(ORStatement stat) throws IOException, SQLException {
-        ORPackageHead freePackageHead = new ORPackageHead();
-        freePackageHead.setExecCmd((byte) ORRequestCommand.FREE_STMT);
-        freePackageHead.setRequestCount(orStream.addRequestCount());
-        byte[] headBytes = getHeadBytes(freePackageHead);
+        orStream.getLock().lock();
+        try {
+            ORPackageHead freePackageHead = new ORPackageHead();
+            freePackageHead.setExecCmd((byte) ORRequestCommand.FREE_STMT);
+            freePackageHead.setRequestCount(orStream.addRequestCount());
+            byte[] headBytes = getHeadBytes(freePackageHead);
 
-        orStream.sendInteger4(PACKAGE_HEAD_SIZE + 4);
-        orStream.send(headBytes);
-        short statId = (short) stat.getMark();
-        orStream.sendInteger2(statId);
-        orStream.sendChar(0);
-        orStream.sendChar(0);
-        orStream.flush();
-        processResults(null, freePackageHead);
+            orStream.sendInteger4(PACKAGE_HEAD_SIZE + 4);
+            orStream.send(headBytes);
+            short statId = (short) stat.getMark();
+            orStream.sendInteger2(statId);
+            orStream.sendChar(0);
+            orStream.sendChar(0);
+            orStream.flush();
+            processResults(null, freePackageHead);
+        } finally {
+            if (orStream.getLock().isHeldByCurrentThread()) {
+                orStream.getLock().unlock();
+            }
+        }
     }
 
     private void sendQuery(ORCachedQuery cachedQuery, ORPackageHead packageHead,
