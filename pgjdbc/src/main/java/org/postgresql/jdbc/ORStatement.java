@@ -29,6 +29,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -60,11 +61,32 @@ public class ORStatement implements Statement {
      */
     protected List<String> sqls = new ArrayList();
 
+    /**
+     * max field size
+     */
+    protected int maxfieldSize = 0;
+
+    /**
+     * result Sets
+     */
+    protected List<ResultSet> resultSets = new ArrayList<>();
+
+    /**
+     * max rows
+     */
+    protected int maxrows = 0;
+
+    /**
+     * query timeout
+     */
+    protected int timeout = 0;
+
     private int queryMode;
     private int updateCount;
     private int queryFlag;
-    private List<Long> resultSets = new LinkedList();
+    private List<Long> cursorSets = new LinkedList();
     private ORField[] field;
+    private int rsIndex = 0;
     private volatile boolean isClosed;
     private int fetchSize;
     private int mark = -1;
@@ -149,6 +171,7 @@ public class ORStatement implements Statement {
         } catch (IOException e) {
             throw new SQLException(e.getMessage());
         }
+        cancel();
         isClosed = true;
     }
 
@@ -185,21 +208,32 @@ public class ORStatement implements Statement {
     }
 
     @Override
-    public void setMaxFieldSize(int max) {
+    public void setMaxFieldSize(int max) throws SQLException {
+        verifyClosed();
+        if (max < 0) {
+            throw new SQLException("The max field size should be greater than 0.");
+        }
+        this.maxfieldSize = max;
     }
 
     @Override
-    public int getMaxRows() {
-        return 0;
+    public int getMaxRows() throws SQLException {
+        verifyClosed();
+        return maxrows;
     }
 
     @Override
-    public void setMaxRows(int max) {
+    public void setMaxRows(int max) throws SQLException {
+        verifyClosed();
+        if (max < 0) {
+            throw new SQLException("The max rows should be greater than 0.");
+        }
+        this.maxrows = max;
     }
 
     @Override
     public int getMaxFieldSize() {
-        return 0;
+        return maxfieldSize;
     }
 
     @Override
@@ -215,8 +249,9 @@ public class ORStatement implements Statement {
     }
 
     @Override
-    public int getQueryTimeout() {
-        return 0;
+    public int getQueryTimeout() throws SQLException {
+        verifyClosed();
+        return timeout / 1000;
     }
 
     /**
@@ -229,11 +264,29 @@ public class ORStatement implements Statement {
     }
 
     @Override
-    public void setQueryTimeout(int seconds) {
+    public void setQueryTimeout(int seconds) throws SQLException {
+        verifyClosed();
+        if (seconds < 0) {
+            throw new SQLException("Query timeout should be greater than 0.");
+        }
+        timeout = seconds * 1000;
     }
 
     @Override
     public void cancel() throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(connection.getUrl(), connection.getClientInfo());
+            if (conn instanceof ORConnection) {
+                ((ORConnection) conn).getQueryExecutor().cancel();
+            }
+        } catch (IOException | SQLException e) {
+            throw new SQLException("cancel failed: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                conn.close();
+            }
+        }
     }
 
     @Override
@@ -260,7 +313,16 @@ public class ORStatement implements Statement {
 
     @Override
     public boolean getMoreResults() throws SQLException {
-        return false;
+        synchronized (this) {
+            verifyClosed();
+            if (rsIndex < resultSets.size() - 1) {
+                resultSets.get(rsIndex).close();
+                rsIndex++;
+                rs = resultSets.get(rsIndex);
+                return true;
+            }
+            return false;
+        }
     }
 
     /**
@@ -319,7 +381,7 @@ public class ORStatement implements Statement {
     private void reset() {
         rs = null;
         updateCount = -1;
-        resultSets.clear();
+        cursorSets.clear();
     }
 
     @Override
@@ -372,12 +434,28 @@ public class ORStatement implements Statement {
      */
     protected void execute(ORCachedQuery cachedQuery, List<ORParameterList> batchParameters) throws SQLException {
         connection.getQueryExecutor().execute(cachedQuery, batchParameters);
+        resultSets.add(cachedQuery.getRs());
+        rsIndex = resultSets.size() - 1;
         this.rs = cachedQuery.getRs();
     }
 
     @Override
     public boolean getMoreResults(int current) throws SQLException {
-        return false;
+        synchronized (this) {
+            verifyClosed();
+            if (rsIndex >= resultSets.size() - 1) {
+                return false;
+            }
+
+            if (current == Statement.CLOSE_ALL_RESULTS) {
+                for (int i = 0; i <= rsIndex; i++) {
+                    resultSets.get(i).close();
+                }
+            }
+            rsIndex++;
+            rs = resultSets.get(rsIndex);
+            return true;
+        }
     }
 
     /**

@@ -83,4 +83,11 @@ public interface ORBaseConnection extends PGConnection, Connection {
      * @param hostSpec host info
      */
     void setHostSpec(HostSpec hostSpec);
+
+    /**
+     * get url
+     *
+     * @return url
+     */
+    String getUrl();
 }

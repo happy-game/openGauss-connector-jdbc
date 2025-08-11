@@ -211,7 +211,7 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
     }
     ORQueryExecutor queryExecutor = new ORQueryExecutorImpl(orStream, connection);
     connection.setQueryExecutor(queryExecutor);
-    LOGGER.info("connect to host " + hostSpec + " success.");
+    LOGGER.debug("connect to host " + hostSpec + " success.");
     return true;
   }
 

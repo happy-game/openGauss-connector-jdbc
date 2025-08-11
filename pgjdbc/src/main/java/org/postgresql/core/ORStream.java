@@ -62,6 +62,8 @@ public class ORStream implements Closeable, Flushable {
     private OutputStream outputStream;
     private Writer encodingWriter;
     private Encoding encoding;
+    private int sessionId;
+    private int sessionNumber;
 
     /**
      * input/output stream constructor
@@ -119,6 +121,24 @@ public class ORStream implements Closeable, Flushable {
     }
 
     /**
+     * get session id
+     *
+     * @return session id
+     */
+    public int getSessionId() {
+        return sessionId;
+    }
+
+    /**
+     * set session id
+     *
+     * @param sessionId session id
+     */
+    public void setSessionId(int sessionId) {
+        this.sessionId = sessionId;
+    }
+
+    /**
      * getLock
      *
      * @return lock
@@ -152,6 +172,24 @@ public class ORStream implements Closeable, Flushable {
      */
     public Encoding getEncoding() {
         return encoding;
+    }
+
+    /**
+     * get session number
+     *
+     * @return session number
+     */
+    public int getSessionNumber() {
+        return sessionNumber;
+    }
+
+    /**
+     * set session number
+     *
+     * @param sessionNumber session number
+     */
+    public void setSessionNumber(int sessionNumber) {
+        this.sessionNumber = sessionNumber;
     }
 
     /**
