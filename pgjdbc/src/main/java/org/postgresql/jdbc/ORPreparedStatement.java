@@ -240,6 +240,15 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
 
     private void addParameters() throws SQLException {
         preparedParameters.checkAllParametersSet();
+        if (!parametersList.isEmpty()) {
+            int paramCount = preparedParameters.getParamCount();
+            ORParameterList params = parametersList.get(0);
+            for (int i = 0; i < paramCount; i++) {
+                if (preparedParameters.getDbTypes()[i] != params.getDbTypes()[i]) {
+                    preparedParameters.transferType(connection.getORStream(), i, params.getDbTypes()[i]);
+                }
+            }
+        }
         parametersList.add(preparedParameters);
         preparedParameters = new ORParameterList(preparedQuery.getParamCount());
     }
@@ -288,7 +297,51 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     @Override
     public void setNull(int index, int sqlType) throws SQLException {
         verifyClosed();
-        preparedParameters.bindParam(connection.getORStream(), index, ORDataType.VARCHAR, null);
+        int dataType;
+        switch (sqlType) {
+            case Types.BOOLEAN:
+            case Types.BIT:
+            case Types.INTEGER:
+            case Types.TINYINT:
+            case Types.SMALLINT:
+                dataType = ORDataType.INT;
+                break;
+            case Types.DOUBLE:
+            case Types.FLOAT:
+            case Types.REAL:
+                dataType = ORDataType.REAL;
+                break;
+            case Types.BIGINT:
+                dataType = ORDataType.BIGINT;
+                break;
+            case Types.DATE:
+                dataType = ORDataType.DATE;
+                break;
+            case Types.TIME:
+                dataType = ORDataType.TIME;
+                break;
+            case Types.TIMESTAMP:
+                dataType = ORDataType.TIMESTAMP;
+                break;
+            case Types.BINARY:
+            case Types.VARBINARY:
+            case Types.LONGVARBINARY:
+                dataType = ORDataType.BINARY;
+                break;
+            case Types.DECIMAL:
+            case Types.NUMERIC:
+                dataType = ORDataType.NUMERIC;
+                break;
+            case Types.BLOB:
+                dataType = ORDataType.BLOB;
+                break;
+            case Types.CLOB:
+                dataType = ORDataType.CLOB;
+                break;
+            default:
+                dataType = ORDataType.VARCHAR;
+        }
+        preparedParameters.bindParam(connection.getORStream(), index, dataType, null);
     }
 
     @Override

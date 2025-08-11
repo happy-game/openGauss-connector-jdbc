@@ -133,16 +133,16 @@ public class ORResultSet extends PgResultSet {
     }
 
     @Override
-    public Array getArray(int i) throws SQLException {
-        checkResultSet(i);
+    public Array getArray(int columnIndex) throws SQLException {
+        checkResultSet(columnIndex);
         if (wasNullFlag) {
             return new ORArray();
         }
 
         ORArray arr = new ORArray();
-        Object[] typeInfo = orFields[i - 1].getTypeInfo();
-        ORField field = orFields[i - 1];
-        Object value = getObject(i);
+        Object[] typeInfo = orFields[columnIndex - 1].getTypeInfo();
+        ORField field = orFields[columnIndex - 1];
+        Object value = getObject(columnIndex);
 
         arr.setField(field);
         arr.setType(ORDataType.getType(Integer.parseInt(typeInfo[1].toString())));
@@ -152,6 +152,10 @@ public class ORResultSet extends PgResultSet {
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
         double value = getDouble(columnIndex);
         return new BigDecimal(String.valueOf(value));
     }
@@ -222,13 +226,21 @@ public class ORResultSet extends PgResultSet {
     }
 
     @Override
-    public Blob getBlob(int i) throws SQLException {
-        checkResultSet(i);
+    public Blob getBlob(int columnIndex) throws SQLException {
+        checkResultSet(columnIndex);
         if (wasNullFlag) {
             return null;
         }
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
         PGBlob blob = new PGBlob();
-        byte[] bs = Arrays.copyOf(getByteValue(i), getLen(i));
+        byte[] byteValue = getByteValue(columnIndex);
+        if (byteValue == null) {
+            return null;
+        }
+        byte[] bs = Arrays.copyOf(byteValue, getLen(columnIndex));
         int dataLen = connection.getORStream().bytesToInt(bs);
         byte[] value = new byte[dataLen];
         System.arraycopy(bs, 12, value, 0, dataLen);
@@ -237,19 +249,23 @@ public class ORResultSet extends PgResultSet {
     }
 
     @Override
-    public Date getDate(int i, Calendar cal) throws SQLException {
-        checkResultSet(i);
+    public Date getDate(int columnIndex, Calendar cal) throws SQLException {
+        checkResultSet(columnIndex);
         if (wasNullFlag) {
             return null;
         }
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
         Calendar calendar = cal == null ? getDefaultCalendar() : cal;
-        long value = connection.getORStream().bytesToLong(getByteValue(i));
+        long value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
         Timestamp result = connection.getTimestampUtils().getTimestamp(value, calendar);
         return new Date(((java.util.Date) result).getTime());
     }
 
-    private LocalTime getLocalTime(int i) {
-        long value = connection.getORStream().bytesToLong(getByteValue(i));
+    private LocalTime getLocalTime(int columnIndex) {
+        long value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
         Instant instant = Instant.ofEpochMilli(value);
         return instant.atZone(ZoneId.systemDefault()).toLocalTime();
     }
@@ -270,14 +286,18 @@ public class ORResultSet extends PgResultSet {
     }
 
     @Override
-    public Timestamp getTimestamp(int i, Calendar cal) throws SQLException {
-        checkResultSet(i);
+    public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException {
+        checkResultSet(columnIndex);
         if (wasNullFlag) {
             return null;
         }
 
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
         Calendar calendar = cal == null ? getDefaultCalendar() : cal;
-        long value = connection.getORStream().bytesToLong(getByteValue(i));
+        long value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
         return connection.getTimestampUtils().getTimestamp(value, calendar);
     }
 
@@ -312,10 +332,10 @@ public class ORResultSet extends PgResultSet {
     }
 
     @Override
-    public boolean absolute(int index) throws SQLException {
+    public boolean absolute(int row) throws SQLException {
         checkClosed();
         int internalIndex;
-        if (index == 0) {
+        if (row == 0) {
             beforeFirst();
             return false;
         }
@@ -323,9 +343,9 @@ public class ORResultSet extends PgResultSet {
         final int rowsSize = totalRows;
         // if index<0, count from the end of the result set, but check
         // to be sure that it is not beyond the first index
-        if (index < 0) {
-            if (index >= -rowsSize) {
-                internalIndex = rowsSize + index;
+        if (row < 0) {
+            if (row >= -rowsSize) {
+                internalIndex = rowsSize + row;
             } else {
                 beforeFirst();
                 return false;
@@ -334,8 +354,8 @@ public class ORResultSet extends PgResultSet {
             // must be the case that index>0,
             // find the correct place, assuming that
             // the index is not too large
-            if (index <= rowsSize) {
-                internalIndex = index - 1;
+            if (row <= rowsSize) {
+                internalIndex = row - 1;
             } else {
                 afterLast();
                 return false;
@@ -463,24 +483,34 @@ public class ORResultSet extends PgResultSet {
     }
 
     @Override
-    public Time getTime(int i, Calendar cal) throws SQLException {
-        checkResultSet(i);
+    public Time getTime(int columnIndex, Calendar cal) throws SQLException {
+        checkResultSet(columnIndex);
         if (wasNullFlag) {
             return null;
         }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
         Calendar calendar = cal == null ? getDefaultCalendar() : cal;
-        long value = connection.getORStream().bytesToLong(getByteValue(i));
+        long value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
         Timestamp result = connection.getTimestampUtils().getTimestamp(value, calendar);
         return new Time(((java.util.Date) result).getTime());
     }
 
     @Override
-    public Clob getClob(int i) throws SQLException {
-        checkResultSet(i);
+    public Clob getClob(int columnIndex) throws SQLException {
+        checkResultSet(columnIndex);
         if (wasNullFlag) {
             return null;
         }
-        byte[] value = Arrays.copyOf(getByteValue(i), getLen(i));
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
+        byte[] value = Arrays.copyOf(getByteValue(columnIndex), getLen(columnIndex));
         int dataLen = connection.getORStream().bytesToInt(value);
         byte[] data = new byte[dataLen];
         System.arraycopy(value, 12, data, 0, dataLen);
@@ -585,6 +615,10 @@ public class ORResultSet extends PgResultSet {
         if (wasNullFlag) {
             return 0;
         }
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return 0;
+        }
         return (int) handleNum(columnIndex);
     }
 
@@ -660,6 +694,11 @@ public class ORResultSet extends PgResultSet {
         if (wasNullFlag) {
             return 0;
         }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return 0;
+        }
         return (byte) handleNum(columnIndex);
     }
 
@@ -669,6 +708,11 @@ public class ORResultSet extends PgResultSet {
         if (wasNullFlag) {
             return 0;
         }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return 0L;
+        }
         return handleNum(columnIndex);
     }
 
@@ -676,6 +720,11 @@ public class ORResultSet extends PgResultSet {
     public boolean getBoolean(int columnIndex) throws SQLException {
         checkResultSet(columnIndex);
         if (wasNullFlag) {
+            return false;
+        }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
             return false;
         }
         int value = connection.getORStream().bytesToInt(getByteValue(columnIndex));
@@ -704,6 +753,10 @@ public class ORResultSet extends PgResultSet {
             return 0;
         }
 
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return 0.0;
+        }
         Object[] type = this.orFields[columnIndex - 1].getTypeInfo();
         int sqlType = Integer.parseInt(type[2].toString());
         switch (sqlType) {
@@ -726,6 +779,11 @@ public class ORResultSet extends PgResultSet {
         if (wasNullFlag) {
             return 0;
         }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return 0;
+        }
         return (short) handleNum(columnIndex);
     }
 
@@ -739,6 +797,11 @@ public class ORResultSet extends PgResultSet {
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
         checkResultSet(columnIndex);
         if (wasNullFlag) {
+            return null;
+        }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
             return null;
         }
         Object[] type = this.orFields[columnIndex - 1].getTypeInfo();
@@ -762,6 +825,11 @@ public class ORResultSet extends PgResultSet {
     public byte[] getBytes(int columnIndex) throws SQLException {
         checkResultSet(columnIndex);
         if (wasNullFlag) {
+            return null;
+        }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
             return null;
         }
         Object[] type = this.orFields[columnIndex - 1].getTypeInfo();
@@ -795,6 +863,10 @@ public class ORResultSet extends PgResultSet {
             return null;
         }
 
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
         Object[] type = this.orFields[columnIndex - 1].getTypeInfo();
         return getObject(columnIndex, type);
     }
@@ -847,6 +919,11 @@ public class ORResultSet extends PgResultSet {
         checkResultSet(columnIndex);
         if (wasNullFlag) {
             return 0;
+        }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return 0.0F;
         }
         String num = String.valueOf(getReal(columnIndex));
         return Float.valueOf(num);
@@ -1000,6 +1077,11 @@ public class ORResultSet extends PgResultSet {
     public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
         if (type == null) {
             throw new SQLException("type is null");
+        }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
         }
         int sqlType = getSQLType(columnIndex);
         if (type == BigDecimal.class) {
