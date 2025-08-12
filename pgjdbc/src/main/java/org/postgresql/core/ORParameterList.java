@@ -114,6 +114,61 @@ public class ORParameterList {
         }
     }
 
+    /**
+     * Convert db type
+     *
+     * @param orStream orStream
+     * @param paramIndex oaram index
+     * @param targetType target type
+     * @throws SQLException if a database access error occurs
+     */
+    public void transferType(ORStream orStream, int paramIndex, int targetType) throws SQLException {
+        dbTypes[paramIndex] = targetType;
+        switch (targetType) {
+            case ORDataType.INT:
+                int intValue = Integer.parseInt(paramValues[paramIndex].toString());
+                byteValues[paramIndex] = orStream.getInteger4Bytes(intValue);
+                break;
+            case ORDataType.BIGINT:
+                long longValue = Long.valueOf(paramValues[paramIndex].toString());
+                byteValues[paramIndex] = orStream.getInteger8Bytes(longValue);
+                break;
+            case ORDataType.REAL:
+                double doubleValue = Double.valueOf(paramValues[paramIndex].toString());
+                long lp = Double.doubleToRawLongBits(doubleValue);
+                byteValues[paramIndex] = orStream.getInteger8Bytes(lp);
+                break;
+            case ORDataType.TIME:
+                long time = Long.valueOf(paramValues[paramIndex].toString());
+                byteValues[paramIndex] = orStream.getInteger8Bytes(time);
+                break;
+            case ORDataType.DATE:
+                long dateValue = Long.valueOf(paramValues[paramIndex].toString());
+                byteValues[paramIndex] = orStream.getInteger8Bytes(dateValue);
+                break;
+            case ORDataType.TIMESTAMP:
+            case ORDataType.TIMESTAMP_LTZ:
+                long timestamp = Long.valueOf(paramValues[paramIndex].toString());
+                byteValues[paramIndex] = orStream.getInteger8Bytes(timestamp);
+                break;
+            case ORDataType.NUMERIC:
+            case ORDataType.DECIMAL:
+            case ORDataType.CHAR:
+            case ORDataType.VARCHAR:
+            case ORDataType.TEXT:
+                byte[] data = String.valueOf(paramValues[paramIndex]).getBytes(orStream.getCharset());
+                byteValues[paramIndex] = getParamBytes(orStream, data);
+                break;
+            case ORDataType.VARBINARY:
+            case ORDataType.BINARY:
+            case ORDataType.RAW:
+                byteValues[paramIndex] = getParamBytes(orStream, (byte[]) paramValues[paramIndex]);
+                break;
+            default:
+                throw new SQLException("type " + targetType + " is invalid.");
+        }
+    }
+
     private byte[] getParamBytes(ORStream orStream, byte[] data) {
         byte[] lenByte = orStream.getInteger4Bytes(data.length);
         byte[] dataByte = data;
