@@ -116,27 +116,32 @@ public class ParallelSearch {
         String username = dbConfig.get("username");
         String auth = dbConfig.get("auth");
 
-        Boolean isInit = false;
-        if (dataSource == null || dataSource.isClosed()) {
-            initConnectionPool(jdbcUrl, username, auth, threadCount);
-            isInit = true;
-        }
-
-        List<Future<List<Map<String, Object>>>> futures = new ArrayList<>();
-        for (List<Object> param : parameters) {
-            QueryTask task = new QueryTask(dataSource, sqlTemplate, param, scanParams);
-            futures.add(executorService.submit(task));
-        }
-
         List<List<Map<String, Object>>> results = new ArrayList<>();
-        for (Future<List<Map<String, Object>>> future : futures) {
-            results.add(future.get());
-        }
+        Boolean isInit = false;
 
-        if (isInit) {
-            closeConnectionPool();
+        try {
+            if (dataSource == null || dataSource.isClosed()) {
+                initConnectionPool(jdbcUrl, username, auth, threadCount);
+                isInit = true;
+            }
+
+            List<Future<List<Map<String, Object>>>> futures = new ArrayList<>();
+            for (List<Object> param : parameters) {
+                QueryTask task = new QueryTask(dataSource, sqlTemplate, param, scanParams);
+                futures.add(executorService.submit(task));
+            }
+
+            for (Future<List<Map<String, Object>>> future : futures) {
+                results.add(future.get());
+            }
+            return results;
+        } catch (InterruptedException | ExecutionException e) {
+            throw new IllegalStateException("search failed: " + e.getMessage(), e);
+        } finally {
+            if (isInit) {
+                closeConnectionPool();
+            }
         }
-        return results;
     }
 
     private void validateSqlTemplate(String sqlTemplate) {
@@ -209,6 +214,7 @@ class QueryTask implements Callable<List<Map<String, Object>>> {
 
     @Override
     public List<Map<String, Object>> call() throws SQLException {
+        List<Map<String, Object>> result = new ArrayList<>();
         try (Connection connection = dataSource.getConnection();
             Statement st = connection.createStatement()) {
             StringBuilder sqlBuilder = new StringBuilder();
@@ -226,6 +232,13 @@ class QueryTask implements Callable<List<Map<String, Object>>> {
             ResultSet rs = st.executeQuery(sql);
 
             return resultSetToMapList(rs);
+        } catch (SQLException e) {
+            Map<String, Object> errorMap = new HashMap<>();
+            errorMap.put("error", true);
+            errorMap.put("message", e.getMessage());
+            errorMap.put("exception", e.getClass().getSimpleName());
+            result.add(errorMap);
+            return result;
         }
     }
 
@@ -244,7 +257,7 @@ class QueryTask implements Callable<List<Map<String, Object>>> {
         while (rs.next()) {
             Map<String, Object> row = new HashMap<>();
             for (int i = 1; i <= columnCount; i++) {
-                row.put(metaData.getColumnName(i), rs.getObject(i));
+                row.put(metaData.getColumnName(i), rs.getString(i));
             }
             result.add(row);
         }
