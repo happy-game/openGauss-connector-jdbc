@@ -100,6 +100,9 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
 
     @Override
     public int[] executeBatch() throws SQLException {
+        if (!hasParam) {
+            return new int[0];
+        }
         verifyClosed();
         try {
             boolean isAutoCommit = connection.getAutoCommit();
