@@ -70,6 +70,7 @@ public class ORConnection implements ORBaseConnection {
     private String url;
     private String user;
     private boolean isReadOnly = false;
+    private int rsHoldability = ResultSet.CLOSE_CURSORS_AT_COMMIT;
     private String catalog;
 
     /**
@@ -153,7 +154,7 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        return new ORPreparedStatement(this, sql, 2);
+        return prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
     }
 
     @Override
@@ -249,7 +250,6 @@ public class ORConnection implements ORBaseConnection {
         return createStatement(resultSetType, resultSetConcurrency, getHoldability());
     }
 
-
     private void checkClosed() throws SQLException {
         if (isClosed()) {
             throw new PSQLException(GT.tr("This connection has been closed."),
@@ -260,7 +260,7 @@ public class ORConnection implements ORBaseConnection {
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
                                               int resultSetHoldability) throws SQLException {
-        return new ORPreparedStatement(this, sql, 2);
+        return new ORPreparedStatement(this, sql, resultSetType, resultSetConcurrency, resultSetHoldability);
     }
 
     @Override
@@ -309,7 +309,8 @@ public class ORConnection implements ORBaseConnection {
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType,
                                               int resultSetConcurrency) throws SQLException {
-        return null;
+        checkClosed();
+        return prepareStatement(sql, resultSetType, resultSetConcurrency, getHoldability());
     }
 
     @Override
@@ -380,7 +381,7 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public int getHoldability() {
-        return 0;
+        return rsHoldability;
     }
 
     @Override
@@ -453,7 +454,7 @@ public class ORConnection implements ORBaseConnection {
     public Statement createStatement(int resultSetType, int resultSetConcurrency,
                                      int resultSetHoldability) throws SQLException {
         checkClosed();
-        return new ORStatement(this);
+        return new ORStatement(this, resultSetType, resultSetConcurrency, resultSetHoldability);
     }
 
     @Override
@@ -483,7 +484,7 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
-        return null;
+        return prepareStatement(sql);
     }
 
     @Override

@@ -70,6 +70,9 @@ import java.net.URL;
  * @since  2025-06-29
  */
 public class ORResultSet extends PgResultSet {
+    private final int resultSetType;
+    private final int resultsetconcurrency;
+
     private ORStatement statement;
     private String sql;
     private TimeZone defaultTimeZone;
@@ -93,10 +96,13 @@ public class ORResultSet extends PgResultSet {
      * @param valueLens value length
      * @param dataRows dataRows
      * @param hasRemain hasRemain
+     * @param resultSetType resultSetType
+     * @param resultSetConcurrency resultSetConcurrency
      * @throws SQLException if a database access error occurs
      */
     public ORResultSet(ORStatement orStatement, String sql, ORField[] fields, List<int[]> valueLens,
-                       List<byte[][]> dataRows, boolean hasRemain) throws SQLException {
+                       List<byte[][]> dataRows, boolean hasRemain, int resultSetType,
+                       int resultSetConcurrency) throws SQLException {
         super();
         this.statement = orStatement;
         this.sql = sql;
@@ -105,6 +111,8 @@ public class ORResultSet extends PgResultSet {
         this.hasRemain = hasRemain;
         this.orFields = fields;
         this.totalRows = dataRows.size();
+        this.resultSetType = resultSetType;
+        this.resultsetconcurrency = resultSetConcurrency;
         if (orStatement.getConnection() instanceof ORBaseConnection) {
             this.connection = (ORBaseConnection) orStatement.getConnection();
         }
@@ -128,7 +136,7 @@ public class ORResultSet extends PgResultSet {
 
     @Override
     public void beforeFirst() throws SQLException {
-        checkClosed();
+        checkRsType();
         currentRow = -1;
     }
 
@@ -217,7 +225,7 @@ public class ORResultSet extends PgResultSet {
 
     @Override
     public boolean first() throws SQLException {
-        checkClosed();
+        checkRsType();
         if (totalRows <= 0) {
             return false;
         }
@@ -325,15 +333,23 @@ public class ORResultSet extends PgResultSet {
 
     @Override
     public void afterLast() throws SQLException {
-        checkClosed();
+        checkRsType();
         if (totalRows > 0) {
             currentRow = totalRows;
         }
     }
 
+    private void checkRsType() throws SQLException {
+        checkClosed();
+        if (resultSetType == ResultSet.TYPE_FORWARD_ONLY) {
+            throw new SQLException("resultSetType requires a scrollable ResultSet,"
+                    + " but it is ResultSet.TYPE_FORWARD_ONLY");
+        }
+    }
+
     @Override
     public boolean absolute(int row) throws SQLException {
-        checkClosed();
+        checkRsType();
         int internalIndex;
         if (row == 0) {
             beforeFirst();
@@ -377,7 +393,7 @@ public class ORResultSet extends PgResultSet {
 
     @Override
     public boolean relative(int rows) throws SQLException {
-        checkClosed();
+        checkRsType();
         if (isInsertRow) {
             throw new PSQLException(GT.tr("Can''t use relative move methods while on the insert row."),
                     PSQLState.INVALID_CURSOR_STATE);
@@ -414,7 +430,7 @@ public class ORResultSet extends PgResultSet {
 
     @Override
     public boolean last() throws SQLException {
-        checkClosed();
+        checkRsType();
         isInsertRow = false;
         if (totalRows <= 0) {
             return false;
@@ -535,12 +551,13 @@ public class ORResultSet extends PgResultSet {
 
     @Override
     public boolean previous() throws SQLException {
-        checkClosed();
+        checkRsType();
         if (isInsertRow) {
             throw new PSQLException(GT.tr("Can''t use relative move methods while on the insert row."),
                     PSQLState.INVALID_CURSOR_STATE);
         }
         if (currentRow < 1) {
+            currentRow = -1;
             return false;
         }
         currentRow--;
