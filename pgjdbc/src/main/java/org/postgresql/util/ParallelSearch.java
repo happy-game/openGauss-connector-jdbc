@@ -57,7 +57,7 @@ public class ParallelSearch {
         Pattern.MULTILINE
     );
     private static final Pattern VECTOR_OP_PATTERN = Pattern.compile(
-        "<->|<=>|<#>|<+>|<~>|<%>"
+        "<->|<=>|<#>|<\\+>|<~>|<%>"
     );
 
     private HikariDataSource dataSource;
@@ -112,6 +112,8 @@ public class ParallelSearch {
             throw new IllegalArgumentException("threadcount must be greater than 0");
         }
 
+        int threads = Math.min(parameters.size(), threadCount);
+
         String jdbcUrl = dbConfig.get("jdbcUrl");
         String username = dbConfig.get("username");
         String auth = dbConfig.get("auth");
@@ -121,7 +123,7 @@ public class ParallelSearch {
 
         try {
             if (dataSource == null || dataSource.isClosed()) {
-                initConnectionPool(jdbcUrl, username, auth, threadCount);
+                initConnectionPool(jdbcUrl, username, auth, threads);
                 isInit = true;
             }
 
