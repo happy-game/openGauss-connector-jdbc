@@ -1,16 +1,8 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) 2004, PostgreSQL Global Development Group
+ * See the LICENSE file in the project root for more information.
  *
- * openGauss is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- *
- *          http://license.coscl.org.cn/MulanPSL2
- *
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * Portions Copyright (c) 2020 Huawei Technologies Co.,Ltd
  */
 
 package org.postgresql.jdbc;
@@ -45,6 +37,21 @@ public class ORStatement implements Statement {
      * connection info
      */
     protected final ORBaseConnection connection;
+
+    /**
+     * the resultSet type to return
+     */
+    protected final int resultSetType;
+
+    /**
+     * is it updateAble or not
+     */
+    protected final int resultSetConcurrency;
+
+    /**
+     * whether this holdability will remain open when the current transaction is committed.
+     */
+    protected final int resultSetHoldability;
 
     /**
      * the execution results
@@ -100,9 +107,16 @@ public class ORStatement implements Statement {
      * statement constructor
      *
      * @param conn connection
+     * @param resultSetType resultSetType
+     * @param resultSetConcurrency resultSetConcurrency
+     * @param resultSetHoldability resultSetHoldability
      */
-    ORStatement(ORConnection conn) {
+    ORStatement(ORConnection conn, int resultSetType, int resultSetConcurrency,
+                int resultSetHoldability) {
         this.connection = conn;
+        this.resultSetType = resultSetType;
+        this.resultSetConcurrency = resultSetConcurrency;
+        this.resultSetHoldability = resultSetHoldability;
         if (conn.getFetchSize() > 0) {
             fetchSize = conn.getFetchSize();
         }
@@ -366,12 +380,12 @@ public class ORStatement implements Statement {
 
     @Override
     public int getResultSetConcurrency() {
-        return 0;
+        return resultSetHoldability;
     }
 
     @Override
     public int getResultSetType() {
-        return 0;
+        return resultSetType;
     }
 
     /**
@@ -567,7 +581,7 @@ public class ORStatement implements Statement {
 
     @Override
     public int getResultSetHoldability() {
-        return 0;
+        return resultSetHoldability;
     }
 
     @Override

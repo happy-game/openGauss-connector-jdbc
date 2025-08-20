@@ -219,7 +219,8 @@ public class ORCachedQuery {
      */
     public void handleResultRows(ORField[] fields, List<int[]> valueLens, List<byte[][]> rows,
                                  boolean hasRemain) throws SQLException {
-        this.rs = new ORResultSet(this.ctStatement, sql, fields, valueLens, rows, hasRemain);
+        this.rs = new ORResultSet(this.ctStatement, sql, fields, valueLens, rows, hasRemain,
+                ctStatement.getResultSetType(), ctStatement.getResultSetConcurrency());
     }
 
     /**
@@ -233,7 +234,8 @@ public class ORCachedQuery {
      */
     public void handleGeneratedKeys(ORField[] fields, List<int[]> valueLens, List<byte[][]> rows,
                                     boolean hasRemain) throws SQLException {
-        this.generatedKeys = new ORResultSet(this.ctStatement, sql, fields, valueLens, rows, hasRemain);
+        this.generatedKeys = new ORResultSet(this.ctStatement, sql, fields, valueLens, rows, hasRemain,
+                ctStatement.getResultSetType(), ctStatement.getResultSetConcurrency());
     }
 
     /**
