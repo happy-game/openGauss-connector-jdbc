@@ -616,6 +616,9 @@ public class ORResultSet extends PgResultSet {
             currentRow++;
         }
 
+        if (currentRow > 0) {
+            dataRows.set(currentRow - 1, null);
+        }
         return hasNext;
     }
 
@@ -623,6 +626,7 @@ public class ORResultSet extends PgResultSet {
     public void close() throws SQLException {
         dataRows = null;
         valueLens = null;
+        orFields = null;
         isClosed = true;
     }
 

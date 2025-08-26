@@ -23,6 +23,8 @@ import org.postgresql.core.ConnectionFactory;
 import org.postgresql.core.ORStream;
 import org.postgresql.fastpath.Fastpath;
 import org.postgresql.largeobject.LargeObjectManager;
+import org.postgresql.log.Log;
+import org.postgresql.log.Logger;
 import org.postgresql.replication.PGReplicationConnection;
 import org.postgresql.util.HostSpec;
 import org.postgresql.util.PSQLException;
@@ -51,12 +53,14 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 
 /**
- * create and return a connection with CT.
+ * create and return a connection with oGRAC.
  *
  * @author zhangting
  * @since  2025-06-29
  */
 public class ORConnection implements ORBaseConnection {
+    private static Log LOGGER = Logger.getLogger(ORConnection.class.getName());
+
     private final TimestampUtils timestampUtils;
     private ORQueryExecutor queryExecutor;
     private ORStream orStream;
@@ -194,10 +198,20 @@ public class ORConnection implements ORBaseConnection {
 
     @Override
     public void close() throws SQLException {
-        if (queryExecutor == null) {
-            return;
+        try {
+            if (queryExecutor != null) {
+                queryExecutor.close();
+            }
+        } finally {
+            if (orStream != null) {
+                try {
+                    orStream.flush();
+                    orStream.close();
+                } catch (IOException e) {
+                    LOGGER.warn("IOException occur on close stream: ", e);
+                }
+            }
         }
-        queryExecutor.close();
     }
 
     @Override

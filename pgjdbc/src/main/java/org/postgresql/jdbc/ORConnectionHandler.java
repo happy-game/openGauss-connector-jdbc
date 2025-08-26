@@ -41,6 +41,7 @@ import java.util.List;
 public class ORConnectionHandler {
     private static final int AGENT = 256;
     private static final int PACKAGE_HEAD_SIZE = 16;
+    private static final byte[] OR_MARK = new byte[]{(byte) 0xfe, (byte) 0xdc, (byte) 0xba, (byte) 0x98};
 
     private ORStream orStream;
     private ORBaseConnection connection;
@@ -96,12 +97,7 @@ public class ORConnectionHandler {
      * @throws SQLException if a database access error occurs
      */
     private void handleshake() throws IOException, SQLException {
-        byte[] orMark = new byte[4];
-        orMark[0] = (byte) 0xfe;
-        orMark[1] = (byte) 0xdc;
-        orMark[2] = (byte) 0xba;
-        orMark[3] = (byte) 0x98;
-        orStream.send(orMark);
+        orStream.send(OR_MARK);
         orStream.flush();
         int endian = orStream.receiveChar();
         boolean isBigEndian = endian == 1;

@@ -86,7 +86,7 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
 
     private boolean executeWithFlags() throws SQLException {
         verifyClosed();
-        if (!hasParam) {
+        if (!hasParam && preparedParameters.getParamCount() > 0) {
             addParameters();
         }
         preparedQuery.setSql(preparedQuery.getParsedSql());
@@ -790,10 +790,7 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
             byte[] value = ((String) x).getBytes(connection.getORStream().getCharset());
             setBytes(index, value);
         } else {
-            throw new PSQLException(
-                    GT.tr("Cannot cast an instance of {0} to type {1}",
-                            x.getClass().getName(), "Types.BLOB"),
-                    PSQLState.INVALID_PARAMETER_TYPE);
+            setBinary(index, x);
         }
     }
 
@@ -802,6 +799,8 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
             setClob(index, (Clob) x);
         } else if (x instanceof String) {
             setString(index, (String) x);
+        } else if (x instanceof byte[]) {
+            setBytes(index, (byte[]) x);
         } else {
             throw new PSQLException(
                     GT.tr("Cannot cast an instance of {0} to type {1}",

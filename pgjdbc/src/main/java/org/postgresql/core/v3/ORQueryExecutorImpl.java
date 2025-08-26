@@ -140,7 +140,7 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
     }
 
     @Override
-    public synchronized void commit() throws IOException, SQLException {
+    public void commit() throws IOException, SQLException {
         orStream.getLock().lock();
         try {
             ORPackageHead commitPackageHead = new ORPackageHead();
@@ -155,7 +155,7 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
     }
 
     @Override
-    public synchronized void rollback() throws IOException, SQLException {
+    public void rollback() throws IOException, SQLException {
         orStream.getLock().lock();
         try {
             ORPackageHead rollbackPackageHead = new ORPackageHead();
@@ -179,7 +179,6 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
             ORPackageHead closePackageHead = new ORPackageHead();
             closePackageHead.setExecCmd((byte) ORRequestCommand.LOGOUT);
             transactionHandle(closePackageHead);
-            orStream.close();
         } catch (IOException ioe) {
             LOGGER.trace("Discarding IOException on close:", ioe);
         } finally {
@@ -290,23 +289,17 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
             msgLen += 4;
             msgLen += 4;
 
-            String sql = cachedQuery.getSql();
-            byte[] sqlData = sql.getBytes(this.orStream.getCharset());
-            int align4BytesSqlLength = sqlData.length % 4 == 0 ? sqlData.length
-                    : sqlData.length + (4 - sqlData.length % 4);
-            byte[] tempSql = new byte[align4BytesSqlLength];
-            System.arraycopy(sqlData, 0, tempSql, 0, sqlData.length);
-            msgLen = msgLen + 4 + tempSql.length;
+            byte[] sqlBytes = cachedQuery.getSql().getBytes(orStream.getCharset());
+            int alignLen = sqlBytes.length % 4 == 0 ? sqlBytes.length
+                    : sqlBytes.length + (4 - sqlBytes.length % 4);
+            byte[] alignSqlBytes = new byte[alignLen];
+            System.arraycopy(sqlBytes, 0, alignSqlBytes, 0, sqlBytes.length);
+            msgLen = msgLen + 4 + alignSqlBytes.length;
 
             msgLen += 4;
             msgLen++;
             msgLen += 3;
-
             List<byte[]> byteParams = getBytesParam(batchParameters);
-            int executeSize = 1;
-            if (!byteParams.isEmpty()) {
-                executeSize = byteParams.size();
-            }
             for (byte[] param : byteParams) {
                 msgLen += param.length;
             }
@@ -319,9 +312,9 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
             orStream.sendChar(0);
             byte[] bs = orStream.getInteger4Bytes(0);
             orStream.send(bs);
-            orStream.sendInteger4(sqlData.length);
-            orStream.send(tempSql);
-            orStream.sendInteger2(executeSize);
+            orStream.sendInteger4(sqlBytes.length);
+            orStream.send(alignSqlBytes);
+            orStream.sendInteger2(byteParams.size());
             int fetchSize = cachedQuery.getCtStatement().getFetchSize();
             orStream.sendInteger2(fetchSize);
             int autoCommit = cachedQuery.getConn().getAutoCommit() ? 1 : 0;
@@ -420,10 +413,6 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
             msgLen++;
             msgLen++;
             List<byte[]> byteParams = getBytesParam(batchParameters);
-            int executeSize = 1;
-            if (!byteParams.isEmpty()) {
-                executeSize = byteParams.size();
-            }
             for (byte[] param : byteParams) {
                 msgLen += param.length;
             }
@@ -432,7 +421,7 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
             orStream.send(headData);
             int statId = cachedQuery.getCtStatement().getMark();
             orStream.sendInteger2(statId);
-            orStream.sendInteger2(executeSize);
+            orStream.sendInteger2(byteParams.size());
             int fetchSize = cachedQuery.getCtStatement().getFetchSize();
             orStream.sendInteger2(fetchSize);
             int autoCommit = cachedQuery.getConn().getAutoCommit() ? 1 : 0;
