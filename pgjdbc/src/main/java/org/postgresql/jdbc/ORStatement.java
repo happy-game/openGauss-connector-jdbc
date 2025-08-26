@@ -135,7 +135,7 @@ public class ORStatement implements Statement {
     public ResultSet executeQuery(String sql) throws SQLException {
         verifyClosed();
         String exception = "No results were returned by the query.";
-        if (sql == null || sql.length() == 0) {
+        if (sql == null || sql.isEmpty()) {
             throw new PSQLException(GT.tr("sql is invalid"), PSQLState.INVALID_PARAMETER_VALUE);
         }
         ORCachedQuery cachedQuery = new ORCachedQuery(connection, this, sql, false);
@@ -182,16 +182,28 @@ public class ORStatement implements Statement {
             if (isClosed) {
                 return;
             }
-        }
-        try {
-            if (this.mark != -1) {
-                connection.getQueryExecutor().freeStatement(this);
+            try {
+                if (this.mark != -1) {
+                    connection.getQueryExecutor().freeStatement(this);
+                }
+            } catch (IOException e) {
+                throw new SQLException(e.getMessage());
             }
-        } catch (IOException e) {
-            throw new SQLException(e.getMessage());
+
+            for (int i = 0; i < resultSets.size(); i++) {
+                ResultSet resultSet = resultSets.get(i);
+                if (resultSet != null) {
+                    resultSet.close();
+                }
+            }
+            resultSets.clear();
+            rs = null;
+            if (generatedKeys != null) {
+                generatedKeys.close();
+            }
+            cancel();
+            isClosed = true;
         }
-        cancel();
-        isClosed = true;
     }
 
     /**
@@ -406,10 +418,12 @@ public class ORStatement implements Statement {
         return queryFlag;
     }
 
-    private void reset() {
-        rs = null;
+    private void init() {
         updateCount = -1;
+        rsIndex = 0;
         cursorSets.clear();
+        rs = null;
+        resultSets.clear();
     }
 
     @Override
@@ -421,7 +435,6 @@ public class ORStatement implements Statement {
         verifyClosed();
         int[] updateCounts = new int[sqls.size()];
         for (int i = 0; i < sqls.size(); i++) {
-            this.reset();
             ORCachedQuery cachedQuery = new ORCachedQuery(connection, this, sqls.get(i), false);
             execute(cachedQuery, null);
             updateCounts[i] = getUpdateCount();
@@ -467,6 +480,8 @@ public class ORStatement implements Statement {
      * @throws SQLException if a database access error occurs
      */
     protected void execute(ORCachedQuery cachedQuery, List<ORParameterList> batchParameters) throws SQLException {
+        init();
+        generatedKeys = null;
         connection.getQueryExecutor().execute(cachedQuery, batchParameters);
         resultSets.add(cachedQuery.getRs());
         rsIndex = resultSets.size() - 1;

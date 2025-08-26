@@ -21,10 +21,10 @@ import org.postgresql.log.Logger;
 import org.postgresql.util.HostSpec;
 import org.postgresql.util.PSQLException;
 
-import javax.net.SocketFactory;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.Properties;
 import java.io.Closeable;
@@ -48,8 +48,12 @@ public class ORStream implements Closeable, Flushable {
     private static final int BUFFER_SIZE = 8192;
     private static final int MAX_PARAMS_NUM = 65535;
 
+    private final byte[] bf2;
+    private final byte[] bf4;
+
     private ReentrantLock lock = new ReentrantLock();
     private SocketAddress socketAddress;
+    private SocketChannel channel;
     private String localAddress;
     private Charset charset;
     private int requestCount;
@@ -73,6 +77,8 @@ public class ORStream implements Closeable, Flushable {
     public ORStream(HostSpec hostSpec) {
         this.charset = Charset.forName("UTF-8");
         this.socketAddress = new InetSocketAddress(hostSpec.getHost(), hostSpec.getPort());
+        bf2 = new byte[2];
+        bf4 = new byte[4];
     }
 
     /**
@@ -211,15 +217,16 @@ public class ORStream implements Closeable, Flushable {
     }
 
     /**
-     * Connect to the CT back end.
+     * create socket connection to the oGRAC back end.
      *
      * @param properties properties
-     * @param socketFactory socketFactory
      * @throws IOException if an I/O error occurs
      * @throws PSQLException if a database access error occurs
      */
-    public void connect(Properties properties, SocketFactory socketFactory) throws IOException, PSQLException {
-        Socket socketConn = socketFactory.createSocket();
+    public void socketConnect(Properties properties) throws IOException, PSQLException {
+        channel = SocketChannel.open();
+        channel.configureBlocking(true);
+        Socket socketConn = channel.socket();
         if (!socketConn.isConnected()) {
             socketConn.connect(this.socketAddress, getTimeout(properties));
             this.localAddress = socketConn.getLocalAddress().toString();
@@ -307,9 +314,9 @@ public class ORStream implements Closeable, Flushable {
     private void setSendBufferSize(Properties props) throws PSQLException, IOException {
         int sendBufferSize = PGProperty.SEND_BUFFER_SIZE.getInt(props);
         if (sendBufferSize >= 0) {
-            this.socket.setReceiveBufferSize(sendBufferSize);
+            this.socket.setSendBufferSize(sendBufferSize);
         } else {
-            this.socket.setReceiveBufferSize(BUFFER_SIZE);
+            this.socket.setSendBufferSize(BUFFER_SIZE);
         }
     }
 
@@ -322,10 +329,18 @@ public class ORStream implements Closeable, Flushable {
         if (encodingWriter != null) {
             encodingWriter.close();
         }
-
-        outputStream.close();
-        visibleStream.close();
-        socket.close();
+        if (outputStream != null) {
+            outputStream.close();
+        }
+        if (visibleStream != null) {
+            visibleStream.close();
+        }
+        if (socket != null) {
+            socket.close();
+        }
+        if (channel != null) {
+            channel.close();
+        }
     }
 
     /**
@@ -439,14 +454,13 @@ public class ORStream implements Closeable, Flushable {
         if (!visibleStream.ensureBytes(2)) {
             throw new EOFException("EOF Exception");
         }
-        byte[] int2buf = new byte[2];
-        if (visibleStream.read(int2buf) != 2) {
+        if (visibleStream.read(bf2) != 2) {
             throw new EOFException("EOF Exception");
         }
         if (isBigEndian) {
-            return ((int2buf[0] << 8) | (int2buf[1] & 0xff));
+            return ((bf2[0] << 8) | (bf2[1] & 0xff));
         }
-        return ((int2buf[1] << 8) | (int2buf[0] & 0xff));
+        return ((bf2[1] << 8) | (bf2[0] & 0xff));
     }
 
     /**
@@ -459,17 +473,16 @@ public class ORStream implements Closeable, Flushable {
         if (!visibleStream.ensureBytes(4)) {
             throw new EOFException("EOF Exception");
         }
-        byte[] int4buf = new byte[4];
-        if (visibleStream.read(int4buf) != 4) {
+        if (visibleStream.read(bf4) != 4) {
             throw new EOFException("EOF Exception");
         }
         if (isBigEndian) {
-            return (int4buf[0] & 0xFF) << 24 | (int4buf[1] & 0xFF) << 16 | (int4buf[2] & 0xFF) << 8
-                    | int4buf[3] & 0xFF;
+            return (bf4[0] & 0xFF) << 24 | (bf4[1] & 0xFF) << 16 | (bf4[2] & 0xFF) << 8
+                    | bf4[3] & 0xFF;
         }
 
-        return (int4buf[3] & 0xFF) << 24 | (int4buf[2] & 0xFF) << 16 | (int4buf[1] & 0xFF) << 8
-                | int4buf[0] & 0xFF;
+        return (bf4[3] & 0xFF) << 24 | (bf4[2] & 0xFF) << 16 | (bf4[1] & 0xFF) << 8
+                | bf4[0] & 0xFF;
     }
 
     /**
@@ -479,19 +492,18 @@ public class ORStream implements Closeable, Flushable {
      * @throws IOException if an I/O error occurs
      */
     public void sendInteger4(int val) throws IOException {
-        byte[] int4buf = new byte[4];
         if (isBigEndian) {
-            int4buf[0] = (byte) (val >>> 24);
-            int4buf[1] = (byte) (val >>> 16);
-            int4buf[2] = (byte) (val >>> 8);
-            int4buf[3] = (byte) (val);
+            bf4[0] = (byte) (val >>> 24);
+            bf4[1] = (byte) (val >>> 16);
+            bf4[2] = (byte) (val >>> 8);
+            bf4[3] = (byte) (val);
         } else {
-            int4buf[0] = (byte) (val);
-            int4buf[1] = (byte) (val >>> 8);
-            int4buf[2] = (byte) (val >>> 16);
-            int4buf[3] = (byte) (val >>> 24);
+            bf4[0] = (byte) (val);
+            bf4[1] = (byte) (val >>> 8);
+            bf4[2] = (byte) (val >>> 16);
+            bf4[3] = (byte) (val >>> 24);
         }
-        outputStream.write(int4buf);
+        outputStream.write(bf4);
     }
 
     /**
@@ -621,15 +633,14 @@ public class ORStream implements Closeable, Flushable {
      * @throws IOException if an I/O error occurs or {@code val} cannot be encoded in 2 bytes
      */
     public void sendInteger2(int val) throws IOException {
-        byte[] int2buf = new byte[2];
         if (isBigEndian) {
-            int2buf[0] = (byte) (val >>> 8);
-            int2buf[1] = (byte) val;
+            bf2[0] = (byte) (val >>> 8);
+            bf2[1] = (byte) val;
         } else {
-            int2buf[0] = (byte) val;
-            int2buf[1] = (byte) (val >>> 8);
+            bf2[0] = (byte) val;
+            bf2[1] = (byte) (val >>> 8);
         }
-        outputStream.write(int2buf);
+        outputStream.write(bf2);
     }
 
     /**

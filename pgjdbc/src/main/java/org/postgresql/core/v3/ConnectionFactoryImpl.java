@@ -168,7 +168,6 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
   public void openORConnectionImpl(HostSpec[] hostSpecs, ORBaseConnection connection,
                                    Properties info) throws SQLException {
     this.connection = connection;
-    SocketFactory socketFactory = SocketFactoryFactory.getSocketFactory(info);
     Iterator<ClusterSpec> cluster = GlobalClusterStatusTracker.getClusterFromHostSpecs(hostSpecs, info);
     while (cluster.hasNext()) {
       HostSpec[] currentSpecs = cluster.next().getHostSpecs();
@@ -177,7 +176,7 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
       Iterator<CandidateHost> hostIter = hostChooser.iterator();
       while (hostIter.hasNext()) {
         CandidateHost candidateHost = hostIter.next();
-        boolean isSuccessed = createConnection(candidateHost, info, socketFactory);
+        boolean isSuccessed = createConnection(candidateHost, info);
         if (isSuccessed) {
           this.connection.setHostSpec(candidateHost.hostSpec);
           return;
@@ -189,16 +188,16 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
     }
   }
 
-  private boolean createConnection(CandidateHost candidateHost, Properties info,
-                                   SocketFactory socketFactory) {
+  private boolean createConnection(CandidateHost candidateHost, Properties info) {
     HostSpec hostSpec = candidateHost.hostSpec;
     ORStream orStream = null;
     try {
-      orStream = tryORConnect(hostSpec, info, socketFactory);
+      orStream = tryORConnect(hostSpec, info);
     } catch (SQLException | IOException e) {
+      closeStream(orStream);
       LOGGER.warn("the connection attempt failed, target host: " + hostSpec);
       try {
-        orStream = tryORConnect(hostSpec, info, socketFactory);
+        orStream = tryORConnect(hostSpec, info);
       } catch (SQLException e2) {
         LOGGER.error("SQLException occur, connect to host " + hostSpec + " failed.", e2);
         closeStream(orStream);
@@ -225,10 +224,10 @@ public class ConnectionFactoryImpl extends ConnectionFactory {
     }
   }
 
-  private ORStream tryORConnect(HostSpec hostSpec, Properties info, SocketFactory socketFactory)
+  private ORStream tryORConnect(HostSpec hostSpec, Properties info)
           throws SQLException, IOException {
     ORStream orStream = new ORStream(hostSpec);
-    orStream.connect(info, socketFactory);
+    orStream.socketConnect(info);
     connection.setOrStream(orStream);
     ORConnectionHandler handler = new ORConnectionHandler(connection, orStream);
     handler.loginDB();
