@@ -35,11 +35,6 @@ public class ORDataType {
     public static final int UNSPECIFIED = -1;
 
     /**
-     * dbtype real
-     */
-    public static final int REAL = 3;
-
-    /**
      * dbtype numeric
      */
     public static final int NUMERIC = 4;
@@ -50,14 +45,14 @@ public class ORDataType {
     public static final int DECIMAL = 5;
 
     /**
+     * dbtype number2
+     */
+    public static final int NUMBER2 = 34;
+
+    /**
      * dbtype text
      */
     public static final int TEXT = 10;
-
-    /**
-     * dbtype clob
-     */
-    public static final int CLOB = 13;
 
     /**
      * dbtype blob
@@ -80,6 +75,11 @@ public class ORDataType {
     public static final int BOOL = 17;
 
     /**
+     * dbtype real
+     */
+    public static final int REAL = 3;
+
+    /**
      * dbtype binary
      */
     public static final int BINARY = 11;
@@ -88,6 +88,11 @@ public class ORDataType {
      * dbtype varbinary
      */
     public static final int VARBINARY = 12;
+
+    /**
+     * dbtype raw
+     */
+    public static final int RAW = 23;
 
     /**
      * dbtype int
@@ -100,14 +105,14 @@ public class ORDataType {
     public static final int BIGINT = 2;
 
     /**
+     * dbtype unsigned int
+     */
+    public static final int UINT = 25;
+
+    /**
      * dbtype date
      */
     public static final int DATE = 6;
-
-    /**
-     * dbtype timestamp
-     */
-    public static final int TIMESTAMP = 7;
 
     /**
      * dbtype timestamp_ltz
@@ -115,14 +120,24 @@ public class ORDataType {
     public static final int TIMESTAMP_LTZ = 19;
 
     /**
+     * dbtype time
+     */
+    public static final int TIME = 113;
+
+    /**
+     * dbtype timestamp
+     */
+    public static final int TIMESTAMP = 7;
+
+    /**
      * dbtype timestamp_tz
      */
     public static final int TIMESTAMP_TZ = 32;
 
     /**
-     * dbtype raw
+     * dbtype clob
      */
-    public static final int RAW = 23;
+    public static final int CLOB = 13;
 
     /**
      * dbtype image
@@ -135,14 +150,19 @@ public class ORDataType {
     public static final int UTC = 106;
 
     /**
-     * dbtype time
-     */
-    public static final int TIME = 113;
-
-    /**
      * dbtype array
      */
     public static final int ARRAY = 33;
+
+    /**
+     * dbtype date_year_month
+     */
+    public static final int DATE_YEAR_MONTH = 21;
+
+    /**
+     * dbtype date day_hms
+     */
+    public static final int DATE_DAY_HMS = 22;
 
     private static List<Object[]> types = new ArrayList<>();
     private static HashMap<Integer, Object[]> dbToType = new HashMap<>();
@@ -160,6 +180,7 @@ public class ORDataType {
         types.add(new Object[]{"REAL", REAL, Types.DOUBLE, "java.lang.Double"});
         types.add(new Object[]{"NUMERIC", NUMERIC, Types.NUMERIC, "java.math.BigDecimal"});
         types.add(new Object[]{"DECIMAL", DECIMAL, Types.NUMERIC, "java.math.BigDecimal"});
+        types.add(new Object[]{"NUMBER2", NUMBER2, Types.DECIMAL, "java.math.BigDecimal"});
         types.add(new Object[]{"TEXT", TEXT, Types.VARCHAR, "java.lang.String"});
         types.add(new Object[]{"CLOB", CLOB, Types.CLOB, "java.sql.Clob"});
         types.add(new Object[]{"BLOB", BLOB, Types.BLOB, "java.sql.Blob"});
@@ -170,11 +191,14 @@ public class ORDataType {
         types.add(new Object[]{"VARBINARY", VARBINARY, Types.VARBINARY, "[B"});
         types.add(new Object[]{"INT", INT, Types.INTEGER, "java.lang.Integer"});
         types.add(new Object[]{"BIGINT", BIGINT, Types.BIGINT, "java.lang.Long"});
+        types.add(new Object[]{"UINT", UINT, Types.INTEGER, "java.lang.Long"});
         types.add(new Object[]{"DATE", DATE, Types.DATE, "java.sql.Date"});
+        types.add(new Object[]{"DATE_YEAR_MONTH", DATE_YEAR_MONTH, Types.OTHER, "java.sql.Date"});
+        types.add(new Object[]{"DATE_DAY_HMS", DATE_DAY_HMS, Types.OTHER, "java.sql.Date"});
         types.add(new Object[]{"TIMESTAMP", TIMESTAMP, Types.TIMESTAMP, "java.sql.Timestamp"});
         types.add(new Object[]{"TIMESTAMP_LTZ", TIMESTAMP_LTZ, Types.TIMESTAMP, "java.sql.Timestamp"});
         types.add(new Object[]{"TIMESTAMP_TZ", TIMESTAMP_TZ, Types.TIMESTAMP_WITH_TIMEZONE, "java.sql.Timestamp"});
-        types.add(new Object[]{"RAW", RAW, Types.BINARY, "[B"});
+        types.add(new Object[]{"RAW", RAW, Types.OTHER, "[B"});
         types.add(new Object[]{"IMAGE", IMAGE, Types.BLOB, "java.sql.Blob"});
         types.add(new Object[]{"UTC", UTC, Types.TIMESTAMP, "java.sql.Timestamp"});
         types.add(new Object[]{"TIME", TIME, Types.TIME, "java.sql.Time"});
