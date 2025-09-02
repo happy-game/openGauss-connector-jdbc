@@ -203,6 +203,7 @@ public class ORDataType {
         types.add(new Object[]{"UTC", UTC, Types.TIMESTAMP, "java.sql.Timestamp"});
         types.add(new Object[]{"TIME", TIME, Types.TIME, "java.sql.Time"});
         types.add(new Object[]{"ARRAY", ARRAY, Types.ARRAY, "java.sql.Array"});
+        types.add(new Object[]{"UNSPECIFIED", UNSPECIFIED, Types.OTHER, "java.lang.Object"});
     }
 
     /**
@@ -226,10 +227,10 @@ public class ORDataType {
      * @return type info
      * @throws SQLException if a database access error occurs
      */
-    public static Object[] getDataType(int dbType) throws SQLException {
+    public static Object[] getDataType(int dbType) {
         if (dbToType.containsKey(dbType)) {
             return dbToType.get(dbType);
         }
-        throw new SQLException("the dbType " + dbType + " is invalid.");
+        return dbToType.get(UNSPECIFIED);
     }
 }

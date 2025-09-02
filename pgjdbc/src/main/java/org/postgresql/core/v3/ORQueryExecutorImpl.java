@@ -560,7 +560,7 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
         }
     }
 
-    private void getFieldInfo(ORField[] fields) throws SQLException, IOException {
+    private void getFieldInfo(ORField[] fields) throws IOException {
         for (int i = 0; i < fields.length; i++) {
             fields[i] = new ORField();
             fields[i].setLength(orStream.receiveInteger2());

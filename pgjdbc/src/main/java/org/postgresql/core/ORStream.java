@@ -584,6 +584,28 @@ public class ORStream implements Closeable, Flushable {
     }
 
     /**
+     * Convert byte[4] to uint type value
+     *
+     * @param bytes byte[4]
+     * @return uint type value
+     */
+    public long bytesToUint(byte[] bytes) {
+        if (bytes == null || bytes.length < 4) {
+            throw new IllegalArgumentException("Byte array must have at least 4 elements");
+        }
+        if (isBigEndian) {
+            return ((long) bytes[0] & 0xFF) << 24
+                    | ((long) bytes[1] & 0xFF) << 16
+                    | ((long) bytes[2] & 0xFF) << 8
+                    | ((long) bytes[3] & 0xFF);
+        }
+        return ((long) bytes[3] & 0xFF) << 24
+                | ((long) bytes[2] & 0xFF) << 16
+                | ((long) bytes[1] & 0xFF) << 8
+                | ((long) bytes[0] & 0xFF);
+    }
+
+    /**
      * Convert byte[8] to long type value
      *
      * @param bytes byte[8]
