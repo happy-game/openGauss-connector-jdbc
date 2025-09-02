@@ -773,12 +773,15 @@ public class ORResultSet extends PgResultSet {
 
     private long handleNum(int columnIndex) throws SQLException {
         ORField fieldDef = this.orFields[columnIndex - 1];
-        int type = Integer.parseInt(fieldDef.getTypeInfo()[2].toString());
+        int dbType = Integer.parseInt(fieldDef.getTypeInfo()[1].toString());
         long value = 0L;
-        if (type == Types.INTEGER) {
-            value = connection.getORStream().bytesToInt(getByteValue(columnIndex));
-        } else if (type == Types.BIGINT) {
-            value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
+        byte[] bv = getByteValue(columnIndex);
+        if (dbType == ORDataType.INT) {
+            value = connection.getORStream().bytesToInt(bv);
+        } else if (dbType == ORDataType.BIGINT) {
+            value = connection.getORStream().bytesToLong(bv);
+        } else if (dbType == ORDataType.UINT) {
+            value = connection.getORStream().bytesToUint(bv);
         } else {
             throw new SQLException("conversion to int type from " + fieldDef.getTypeInfo()[0] + " is not supported.");
         }
