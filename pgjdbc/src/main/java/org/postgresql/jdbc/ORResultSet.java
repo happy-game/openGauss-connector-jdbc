@@ -170,7 +170,7 @@ public class ORResultSet extends PgResultSet {
 
     private String getNumber(int columnIndex) {
         byte[] byteValue = getByteValue(columnIndex);
-        if (byteValue[0] < 2) {
+        if ((byte) (byteValue[0] >> 1) == 0) {
             return "0";
         }
         StringBuilder value = new StringBuilder();
@@ -650,10 +650,6 @@ public class ORResultSet extends PgResultSet {
             return null;
         }
         Object[] type = this.orFields[columnIndex - 1].getTypeInfo();
-        if ("RAW".equals(type[0])) {
-            byte[] rawbs = Arrays.copyOf(getByteValue(columnIndex), getLen(columnIndex));
-            return byteToString(rawbs);
-        }
         int sqlType = Integer.parseInt(type[2].toString());
         switch (sqlType) {
             case Types.TINYINT:
@@ -663,8 +659,9 @@ public class ORResultSet extends PgResultSet {
             case Types.BIGINT:
                 return String.valueOf(getLong(columnIndex));
             case Types.NUMERIC:
-            case Types.DECIMAL:
                 return String.valueOf(getBigDecimal(columnIndex));
+            case Types.DECIMAL:
+                return String.valueOf(getDecimal(columnIndex));
             case Types.REAL:
             case Types.FLOAT:
             case Types.DOUBLE:
@@ -684,6 +681,8 @@ public class ORResultSet extends PgResultSet {
             case Types.BOOLEAN:
                 Object obj = this.getBoolean(columnIndex);
                 return obj.toString();
+            case Types.OTHER:
+                return getOther(columnIndex, type);
             default:
                 int valueLen = getLen(columnIndex);
                 if (valueLen < 0) {
@@ -691,6 +690,25 @@ public class ORResultSet extends PgResultSet {
                 }
                 byte[] bs = Arrays.copyOf(getByteValue(columnIndex), valueLen);
                 return new String(bs, this.connection.getORStream().getCharset());
+        }
+    }
+
+    private String getOther(int columnIndex, Object[] type) throws SQLException {
+        int dbtype = Integer.parseInt(type[1].toString());
+        switch (dbtype) {
+            case ORDataType.RAW:
+                byte[] rawbs = Arrays.copyOf(getByteValue(columnIndex), getLen(columnIndex));
+                return byteToString(rawbs);
+            case ORDataType.DATE_YEAR_MONTH:
+                byte[] ymbs = getByteValue(columnIndex);
+                int ymTime = connection.getORStream().bytesToInt(ymbs);
+                return ORTimestampUtils.getDateYearMonth(ymTime);
+            case ORDataType.DATE_DAY_HMS:
+                byte[] bs = getByteValue(columnIndex);
+                long dhTime = connection.getORStream().bytesToLong(bs);
+                return ORTimestampUtils.getDateDayHMS(dhTime);
+            default:
+                throw new SQLException("dbType " + dbtype + " is not supported.");
         }
     }
 
@@ -786,6 +804,7 @@ public class ORResultSet extends PgResultSet {
             case Types.REAL:
                 return getReal(columnIndex);
             case Types.DECIMAL:
+                return Double.valueOf(getDecimal(columnIndex));
             case Types.NUMERIC:
                 String num = getNumber(columnIndex);
                 return Double.valueOf(num);
@@ -834,6 +853,8 @@ public class ORResultSet extends PgResultSet {
                 double value = getReal(columnIndex);
                 return new BigDecimal(String.valueOf(value));
             case Types.DECIMAL:
+                String decimal = getDecimal(columnIndex);
+                return new BigDecimal(decimal);
             case Types.NUMERIC:
                 String num = getNumber(columnIndex);
                 return new BigDecimal(num);
@@ -906,8 +927,9 @@ public class ORResultSet extends PgResultSet {
             case Types.BIGINT:
                 return getLong(columnIndex);
             case Types.NUMERIC:
-            case Types.DECIMAL:
                 return getBigDecimal(columnIndex);
+            case Types.DECIMAL:
+                return getDecimal(columnIndex);
             case Types.REAL:
             case Types.FLOAT:
             case Types.DOUBLE:
@@ -932,6 +954,99 @@ public class ORResultSet extends PgResultSet {
                 return getBlob(columnIndex);
             default:
                 return getString(columnIndex);
+        }
+    }
+
+    private String getDecimal(int columnIndex) throws SQLException {
+        byte[] valueBytes = getByteValue(columnIndex);
+        if (valueBytes.length <= 1) {
+            return "0";
+        }
+        int flag = valueBytes[0] & 0xff;
+        int valueLen = getLen(columnIndex);
+        if (valueLen <= 1) {
+            return "0";
+        }
+        if (valueLen > 22) {
+            throw new SQLException("value length: " + valueLen + "  is out of range.");
+        }
+
+        boolean isMinus = (((flag >> 7) & 1) == 0);
+        StringBuilder value = getBaseValue(isMinus, valueBytes, valueLen);
+        int zeroExp;
+        if (isMinus) {
+            zeroExp = 0x3e - flag;
+        } else {
+            zeroExp = flag - 0xc1;
+        }
+        int mul = zeroExp * 2;
+        value.append('E');
+        if (mul > 0) {
+            value.append('+');
+        }
+        value.append(mul);
+
+        int mark = mul;
+        if (valueBytes[1] >= 10) {
+            mark += 1;
+        }
+        int precision = getPrecision(valueLen, valueBytes);
+        int sign = isMinus ? 0 : 1;
+        int lenFactor = mark - sign + 2;
+        int lenMark = precision - mark - sign + 1;
+        if ((mark >= -6 || lenMark <= 40) && (mark <= 0 || lenFactor <= 40)) {
+            return new BigDecimal(value.toString()).stripTrailingZeros().toPlainString();
+        }
+        return new BigDecimal(value.toString()).toString();
+    }
+
+    private StringBuilder getBaseValue(boolean isMinus, byte[] valueBytes, int valueLen) {
+        StringBuilder value = new StringBuilder();
+        if (isMinus) {
+            value.append('-');
+        }
+
+        int i = 1;
+        value.append(valueBytes[i++]);
+        if (i < valueLen) {
+            value.append('.');
+        }
+        while (i < valueLen) {
+            if (valueBytes[i] < 10) {
+                value.append(0).append(valueBytes[i]);
+            } else {
+                value.append(valueBytes[i]);
+            }
+            i++;
+        }
+        return value;
+    }
+
+    private int getPrecision(int valueLen, byte[] valueBytes) {
+        int result = 0;
+        int i = valueLen - 1;
+        while (i > 1) {
+            if (valueBytes[i] > 0) {
+                result = result + 2 * i;
+                if (valueBytes[i] % 10 == 0) {
+                    result -= 1;
+                }
+                break;
+            }
+            i--;
+        }
+
+        if (i > 0) {
+            if (valueBytes[1] >= 10) {
+                return result + 2;
+            } else {
+                return result + 1;
+            }
+        }
+        if (valueBytes[1] < 10 || valueBytes[1] % 10 == 0) {
+            return 1;
+        } else {
+            return 2;
         }
     }
 
