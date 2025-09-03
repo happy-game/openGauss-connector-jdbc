@@ -640,7 +640,12 @@ public class ORResultSet extends PgResultSet {
         if (valueLen < 0) {
             return 0;
         }
-        return (int) handleNum(columnIndex);
+
+        long value = handleNum(columnIndex);
+        if (value > Integer.MAX_VALUE || value < Integer.MIN_VALUE) {
+            throw new SQLException("value " + value + " is out of the range of the integer.");
+        }
+        return (int) value;
     }
 
     @Override
@@ -738,7 +743,12 @@ public class ORResultSet extends PgResultSet {
         if (valueLen < 0) {
             return 0;
         }
-        return (byte) handleNum(columnIndex);
+
+        long value = handleNum(columnIndex);
+        if (value > Byte.MAX_VALUE || value < Byte.MIN_VALUE) {
+            throw new SQLException("value " + value + " is out of the range of the byte.");
+        }
+        return (byte) value;
     }
 
     @Override
@@ -827,7 +837,12 @@ public class ORResultSet extends PgResultSet {
         if (valueLen < 0) {
             return 0;
         }
-        return (short) handleNum(columnIndex);
+
+        long value = handleNum(columnIndex);
+        if (value > Short.MAX_VALUE || value < Short.MIN_VALUE) {
+            throw new SQLException("value " + value + " is out of the range of the short.");
+        }
+        return (short) value;
     }
 
     private double getReal(int columnIndex) {
