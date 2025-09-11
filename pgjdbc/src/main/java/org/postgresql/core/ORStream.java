@@ -19,6 +19,7 @@ import org.postgresql.PGProperty;
 import org.postgresql.log.Log;
 import org.postgresql.log.Logger;
 import org.postgresql.util.HostSpec;
+import org.postgresql.util.ORPackageHead;
 import org.postgresql.util.PSQLException;
 
 import java.net.InetSocketAddress;
@@ -35,6 +36,8 @@ import java.io.IOException;
 import java.io.BufferedOutputStream;
 import java.io.FilterOutputStream;
 import java.io.EOFException;
+import java.io.InputStream;
+import java.io.BufferedInputStream;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -64,10 +67,12 @@ public class ORStream implements Closeable, Flushable {
     private boolean isBigEndian;
     private VisibleBufferedInputStream visibleStream;
     private OutputStream outputStream;
+    private InputStream inputStream;
     private Writer encodingWriter;
     private Encoding encoding;
     private int sessionId;
     private int sessionNumber;
+    private ORPackageHead packageHead;
 
     /**
      * input/output stream constructor
@@ -75,6 +80,7 @@ public class ORStream implements Closeable, Flushable {
      * @param hostSpec host address
      */
     public ORStream(HostSpec hostSpec) {
+        this.packageHead = new ORPackageHead();
         this.charset = Charset.forName("UTF-8");
         this.socketAddress = new InetSocketAddress(hostSpec.getHost(), hostSpec.getPort());
         bf2 = new byte[2];
@@ -97,6 +103,15 @@ public class ORStream implements Closeable, Flushable {
      */
     public void setBigEndian(boolean isBigEndian) {
         this.isBigEndian = isBigEndian;
+    }
+
+    /**
+     * get packageHead
+     *
+     * @return packageHead
+     */
+    public ORPackageHead getPackageHead() {
+        return packageHead;
     }
 
     /**
@@ -236,7 +251,8 @@ public class ORStream implements Closeable, Flushable {
             setReceiveBufferSize(properties);
             setSendBufferSize(properties);
             socketConn.setTcpNoDelay(true);
-            visibleStream = new VisibleBufferedInputStream(socketConn.getInputStream(), BUFFER_SIZE);
+            inputStream = new BufferedInputStream(socketConn.getInputStream(), BUFFER_SIZE);
+            visibleStream = new VisibleBufferedInputStream(inputStream, BUFFER_SIZE);
             outputStream = new BufferedOutputStream(socketConn.getOutputStream(), BUFFER_SIZE);
             setEncoding(Encoding.getJVMEncoding("UTF-8"));
         }
@@ -331,6 +347,9 @@ public class ORStream implements Closeable, Flushable {
         }
         if (outputStream != null) {
             outputStream.close();
+        }
+        if (inputStream != null) {
+            inputStream.close();
         }
         if (visibleStream != null) {
             visibleStream.close();
