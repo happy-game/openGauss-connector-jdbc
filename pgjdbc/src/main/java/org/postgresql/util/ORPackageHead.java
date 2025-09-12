@@ -39,6 +39,20 @@ public class ORPackageHead {
     }
 
     /**
+     * init package head
+     */
+    public void init() {
+        this.size = 0;
+        this.execCmd = 0;
+        this.execResult = 0;
+        this.flags = 0;
+        this.version = 20;
+        this.version1 = 0;
+        this.version2 = 0;
+        this.requestCount = 0;
+    }
+
+    /**
      * get message size
      *
      * @return message size

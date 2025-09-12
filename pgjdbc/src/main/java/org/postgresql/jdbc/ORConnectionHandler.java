@@ -50,6 +50,7 @@ public class ORConnectionHandler {
     private int iteration;
     private Charset charset;
     private byte[] sha256Key;
+    private ORPackageHead packageHead;
 
     /**
      * connection handler constructor
@@ -61,6 +62,7 @@ public class ORConnectionHandler {
         this.connection = connection;
         charset = orStream.getCharset();
         this.orStream = orStream;
+        this.packageHead = orStream.getPackageHead();
     }
 
     /**
@@ -114,13 +116,11 @@ public class ORConnectionHandler {
         orStream.setCapacity(capacity);
         int requestFlag = orStream.getRequestFlag();
         orStream.setRequestFlag(requestFlag);
-        ORPackageHead handshakePackageHead = new ORPackageHead();
-        ORPackageHead authPackageHead = new ORPackageHead();
         try {
-            sendHandshakeQuery(handshakePackageHead);
-            processResults(handshakePackageHead, false);
-            sendAuthQuery(authPackageHead);
-            processResults(authPackageHead, false);
+            sendHandshakeQuery();
+            processResults(false);
+            sendAuthQuery();
+            processResults(false);
         } catch (IOException | SQLException e) {
             throw new PSQLException(GT.tr("handshake and authentication failed."),
                     PSQLState.CONNECTION_UNABLE_TO_CONNECT, e);
@@ -128,21 +128,21 @@ public class ORConnectionHandler {
     }
 
     private void doLogin() throws SQLException {
-        ORPackageHead loginPackageHead = new ORPackageHead();
-        loginPackageHead.setExecCmd((byte) ORRequestCommand.LOGIN);
+        packageHead.init();
+        packageHead.setExecCmd((byte) ORRequestCommand.LOGIN);
         try {
-            sendLoginQuery(loginPackageHead);
-            processResults(loginPackageHead, true);
+            sendLoginQuery();
+            processResults(true);
         } catch (SQLException | IOException e) {
             throw new PSQLException(GT.tr("login database failed."),
                     PSQLState.CONNECTION_UNABLE_TO_CONNECT, e);
         }
     }
 
-    private void sendLoginQuery(ORPackageHead loginPackageHead) throws SQLException, IOException {
-        loginPackageHead.setRequestCount(this.orStream.addRequestCount());
+    private void sendLoginQuery() throws SQLException, IOException {
+        packageHead.setRequestCount(this.orStream.addRequestCount());
         List<byte[]> sendData = new ArrayList<>();
-        byte[] data = getHeadBytes(loginPackageHead);
+        byte[] data = getHeadBytes();
         sendData.add(data);
         int msgLen = PACKAGE_HEAD_SIZE;
         msgLen = loginEncode(sendData, msgLen);
@@ -258,8 +258,9 @@ public class ORConnectionHandler {
         return new byte[4 - dataLen % 4];
     }
 
-    private void sendAuthQuery(ORPackageHead authPackageHead) throws SQLException, IOException {
-        authPackageHead.setRequestCount(this.orStream.addRequestCount());
+    private void sendAuthQuery() throws SQLException, IOException {
+        packageHead.init();
+        packageHead.setRequestCount(this.orStream.addRequestCount());
         int msgLen = PACKAGE_HEAD_SIZE;
         byte[] userNameByte = connection.getClientInfo("user").getBytes(charset);
         msgLen += userNameByte.length;
@@ -291,8 +292,8 @@ public class ORConnectionHandler {
             }
         }
 
-        authPackageHead.setExecCmd((byte) ORRequestCommand.AUTH_INIT);
-        byte[] headBytes = getHeadBytes(authPackageHead);
+        packageHead.setExecCmd((byte) ORRequestCommand.AUTH_INIT);
+        byte[] headBytes = getHeadBytes();
         orStream.sendInteger4(msgLen);
         orStream.send(headBytes);
         orStream.send(userNameLenyte);
@@ -308,7 +309,7 @@ public class ORConnectionHandler {
         orStream.flush();
     }
 
-    private byte[] getHeadBytes(ORPackageHead packageHead) {
+    private byte[] getHeadBytes() {
         byte[] flagByte = orStream.getInteger2Bytes(packageHead.getFlags());
         byte[] data = new byte[12];
         int index = 0;
@@ -329,24 +330,25 @@ public class ORConnectionHandler {
         return data;
     }
 
-    private void sendHandshakeQuery(ORPackageHead handshakePackageHead) throws IOException {
-        handshakePackageHead.setExecCmd((byte) ORRequestCommand.HANDLE_SHAKE);
-        handshakePackageHead.setRequestCount(this.orStream.addRequestCount());
+    private void sendHandshakeQuery() throws IOException {
+        packageHead.init();
+        packageHead.setExecCmd((byte) ORRequestCommand.HANDLE_SHAKE);
+        packageHead.setRequestCount(this.orStream.addRequestCount());
         int sendMsgLen = PACKAGE_HEAD_SIZE + 4;
         orStream.sendInteger4(sendMsgLen);
-        orStream.sendChar(handshakePackageHead.getExecCmd());
-        orStream.sendChar(handshakePackageHead.getExecResult());
-        orStream.sendInteger2(handshakePackageHead.getFlags());
-        orStream.sendChar(handshakePackageHead.getVersion());
-        orStream.sendChar(handshakePackageHead.getVersion1());
-        orStream.sendChar(handshakePackageHead.getVersion2());
+        orStream.sendChar(packageHead.getExecCmd());
+        orStream.sendChar(packageHead.getExecResult());
+        orStream.sendInteger2(packageHead.getFlags());
+        orStream.sendChar(packageHead.getVersion());
+        orStream.sendChar(packageHead.getVersion1());
+        orStream.sendChar(packageHead.getVersion2());
         orStream.sendChar(0);
-        orStream.sendInteger4(handshakePackageHead.getRequestCount());
+        orStream.sendInteger4(packageHead.getRequestCount());
         orStream.sendInteger4(orStream.getRequestFlag());
         orStream.flush();
     }
 
-    private void processResults(ORPackageHead packageHead, boolean isLogin) throws SQLException, IOException {
+    private void processResults(boolean isLogin) throws SQLException, IOException {
         boolean hasResult = true;
         while (hasResult) {
             packageHead.setSize(orStream.receiveInteger4());
@@ -365,18 +367,18 @@ public class ORConnectionHandler {
                 if (packageHead.getExecResult() != 0) {
                     handleError(remainLen);
                 } else {
-                    handleReponse(packageHead, isLogin, remainLen);
+                    handleReponse(isLogin, remainLen);
                 }
             }
         }
     }
 
-    private void handleReponse(ORPackageHead packageHead, boolean isLogin, int remainLen)
+    private void handleReponse(boolean isLogin, int remainLen)
             throws SQLException, IOException {
         if (isLogin) {
             getLoginMsg();
         } else {
-            getHandshakeMsg(packageHead, remainLen);
+            getHandshakeMsg(remainLen);
         }
     }
 
@@ -429,7 +431,7 @@ public class ORConnectionHandler {
         orStream.receiveInteger4();
     }
 
-    private void getHandshakeMsg(ORPackageHead packageHead, int remainLen) throws IOException, SQLException {
+    private void getHandshakeMsg(int remainLen) throws IOException, SQLException {
         int rem = remainLen;
         if (packageHead.getExecCmd() != ORRequestCommand.HANDLE_SHAKE) {
             orStream.setCapacity(orStream.receiveInteger4());
