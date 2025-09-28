@@ -302,7 +302,7 @@ public class Driver implements java.sql.Driver {
             return null;
         }
 
-        if (!parseConnectionProperties(props)) {
+        if (!parseConnectionProperties(props, isOGRAC)) {
             return null;
         }
 
@@ -351,8 +351,9 @@ public class Driver implements java.sql.Driver {
      * Parse the configuration items in the connection string.
      *
      * @param props Connection Properties
+     * @param isOGRAC is OGRAC
      */
-    private Boolean parseConnectionProperties(Properties props) {
+    private Boolean parseConnectionProperties(Properties props, boolean isOGRAC) {
         Logger.setLoggerName(props.getProperty("logger"));
         if (Logger.isUsingJDKLogger()) {
             setupLoggerFromProperties(props);
@@ -368,7 +369,7 @@ public class Driver implements java.sql.Driver {
             GlobalClusterStatusTracker.refreshProperties(props);
         }
 
-        if (MultiHostChooser.isUsingAutoLoadBalance(props)) {
+        if (MultiHostChooser.isUsingAutoLoadBalance(props) && !isOGRAC) {
             if (!MultiHostChooser.isVaildPriorityLoadBalance(props)) {
                 parseStatus = false;
             }
