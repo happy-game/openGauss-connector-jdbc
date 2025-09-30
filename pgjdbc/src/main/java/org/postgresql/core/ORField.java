@@ -30,6 +30,7 @@ public class ORField {
     private boolean isAutoIncrement;
     private int precision;
     private int scale;
+    private int inOutFlag;
 
     /**
      * set columnName
@@ -56,6 +57,15 @@ public class ORField {
      */
     public Object[] getTypeInfo() {
         return typeInfo;
+    }
+
+    /**
+     * set inOut flag
+     *
+     * @param inOutFlag inOut flag
+     */
+    public void setInOutFlag(int inOutFlag) {
+        this.inOutFlag = inOutFlag;
     }
 
     /**

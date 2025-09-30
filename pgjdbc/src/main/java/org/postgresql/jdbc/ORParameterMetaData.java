@@ -73,7 +73,7 @@ public class ORParameterMetaData extends PgParameterMetaData {
     }
 
     private int[] getTypes() throws SQLException {
-        List<ORParameterList> parameterList = preparedQuery.getCtStatement().getParametersList();
+        List<ORParameterList> parameterList = preparedQuery.getStatement().getParametersList();
         if (parameterList.isEmpty()) {
             throw new SQLException("the parameter list is empty.");
         }

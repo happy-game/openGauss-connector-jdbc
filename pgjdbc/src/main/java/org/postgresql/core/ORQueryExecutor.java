@@ -15,6 +15,7 @@
 
 package org.postgresql.core;
 
+import org.postgresql.jdbc.ORCursorResultSet;
 import org.postgresql.jdbc.ORStatement;
 
 import java.io.IOException;
@@ -90,6 +91,14 @@ public interface ORQueryExecutor {
      * @throws IOException if an I/O error occurs
      */
     void fetch(ORCachedQuery cachedQuery) throws SQLException, IOException;
+
+    /**
+     * fetch cursor data
+     *
+     * @param cursorRs cursor ResultSet
+     * @throws SQLException if a database access error occurs
+     */
+    void fetchCursor(ORCursorResultSet cursorRs) throws SQLException;
 
     /**
      * cancel

@@ -30,7 +30,7 @@ import java.util.List;
  */
 public class ORCachedQuery {
     private ORResultSet rs;
-    private ORStatement ctStatement;
+    private ORStatement statement;
     private ORBaseConnection conn;
     private String sql;
     private String parsedSql;
@@ -43,13 +43,13 @@ public class ORCachedQuery {
      * cached query constructor
      *
      * @param conn connection
-     * @param ctStatement statement
+     * @param statement statement
      * @param sql sql
      * @param isPrepare is prepare
      */
-    public ORCachedQuery(ORBaseConnection conn, ORStatement ctStatement, String sql, boolean isPrepare) {
+    public ORCachedQuery(ORBaseConnection conn, ORStatement statement, String sql, boolean isPrepare) {
         this.conn = conn;
-        this.ctStatement = ctStatement;
+        this.statement = statement;
         this.sql = sql;
         this.paramCount = parseSql(sql);
         this.isPrepare = isPrepare;
@@ -101,7 +101,12 @@ public class ORCachedQuery {
     }
 
     private int parseSql(String sql) {
-        char[] cs = sql.toCharArray();
+        if (sql == null) {
+            return 0;
+        }
+
+        String formatSql = getFormatSql(sql.trim());
+        char[] cs = formatSql.toCharArray();
         StringBuilder sqlSb = new StringBuilder(cs.length + 10);
         int index = 0;
         int params = 0;
@@ -125,6 +130,13 @@ public class ORCachedQuery {
 
         this.parsedSql = sqlSb.toString();
         return params;
+    }
+
+    private String getFormatSql(String sql) {
+        if (sql.startsWith("{") && sql.endsWith("}")) {
+            return sql.substring(1, sql.length() - 1);
+        }
+        return sql;
     }
 
     private int parseQuotes(StringBuilder sqlSb, char[] cs, int index, char target) {
@@ -186,8 +198,8 @@ public class ORCachedQuery {
      *
      * @return statement
      */
-    public ORStatement getCtStatement() {
-        return ctStatement;
+    public ORStatement getStatement() {
+        return statement;
     }
 
     /**
@@ -219,8 +231,8 @@ public class ORCachedQuery {
      */
     public void handleResultRows(ORField[] fields, List<int[]> valueLens, List<byte[][]> rows,
                                  boolean hasRemain) throws SQLException {
-        this.rs = new ORResultSet(this.ctStatement, sql, fields, valueLens, rows, hasRemain,
-                ctStatement.getResultSetType(), ctStatement.getResultSetConcurrency());
+        this.rs = new ORResultSet(this.statement, sql, fields, valueLens, rows, hasRemain,
+                statement.getResultSetType(), statement.getResultSetConcurrency());
     }
 
     /**
@@ -234,8 +246,8 @@ public class ORCachedQuery {
      */
     public void handleGeneratedKeys(ORField[] fields, List<int[]> valueLens, List<byte[][]> rows,
                                     boolean hasRemain) throws SQLException {
-        this.generatedKeys = new ORResultSet(this.ctStatement, sql, fields, valueLens, rows, hasRemain,
-                ctStatement.getResultSetType(), ctStatement.getResultSetConcurrency());
+        this.generatedKeys = new ORResultSet(this.statement, sql, fields, valueLens, rows, hasRemain,
+                statement.getResultSetType(), statement.getResultSetConcurrency());
     }
 
     /**

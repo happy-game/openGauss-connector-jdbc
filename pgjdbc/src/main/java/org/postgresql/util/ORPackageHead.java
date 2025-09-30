@@ -35,18 +35,20 @@ public class ORPackageHead {
      * package head constructor
      */
     public ORPackageHead() {
-        this.version = 20;
+        this.version = 36;
     }
 
     /**
      * init package head
+     *
+     * @param serverVersion server version
      */
-    public void init() {
+    public void init(int serverVersion) {
         this.size = 0;
         this.execCmd = 0;
         this.execResult = 0;
         this.flags = 0;
-        this.version = 20;
+        this.version = (byte) serverVersion;
         this.version1 = 0;
         this.version2 = 0;
         this.requestCount = 0;

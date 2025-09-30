@@ -105,8 +105,8 @@ public class ORConnectionHandler {
         boolean isBigEndian = endian == 1;
         orStream.setBigEndian(isBigEndian);
 
-        int serverVersion = orStream.receiveChar();
-        orStream.setServerVersion(serverVersion);
+        int version = orStream.receiveChar();
+        orStream.setVersion(version);
         int reponseFlag = orStream.receiveInteger2();
         orStream.setRequestFlag(reponseFlag);
 
@@ -128,7 +128,7 @@ public class ORConnectionHandler {
     }
 
     private void doLogin() throws SQLException {
-        packageHead.init();
+        packageHead.init(orStream.getServerVersion());
         packageHead.setExecCmd((byte) ORRequestCommand.LOGIN);
         try {
             sendLoginQuery();
@@ -259,7 +259,7 @@ public class ORConnectionHandler {
     }
 
     private void sendAuthQuery() throws SQLException, IOException {
-        packageHead.init();
+        packageHead.init(orStream.getServerVersion());
         packageHead.setRequestCount(this.orStream.addRequestCount());
         int msgLen = PACKAGE_HEAD_SIZE;
         byte[] userNameByte = connection.getClientInfo("user").getBytes(charset);
@@ -331,7 +331,7 @@ public class ORConnectionHandler {
     }
 
     private void sendHandshakeQuery() throws IOException {
-        packageHead.init();
+        packageHead.init(orStream.getServerVersion());
         packageHead.setExecCmd((byte) ORRequestCommand.HANDLE_SHAKE);
         packageHead.setRequestCount(this.orStream.addRequestCount());
         int sendMsgLen = PACKAGE_HEAD_SIZE + 4;
@@ -394,14 +394,30 @@ public class ORConnectionHandler {
         offset += 2;
         orStream.receiveInteger2();
         offset += 2;
-        byte[] errBytes = orStream.receive(remainLen - offset);
-        int msgLen = 0;
-        for (int i = 0; i < errBytes.length; i++) {
-            if (errBytes[i] == 0) {
-                msgLen = i;
-                break;
-            }
+        byte[] errBytes;
+        int protocolVersion = orStream.getServerVersion();
+        if (orStream.isHandshake()) {
+            protocolVersion = orStream.getVersion();
         }
+        int msgLen = 0;
+        int maxLen = remainLen - offset;
+        if (protocolVersion < 23) {
+            errBytes = orStream.receive(maxLen);
+            for (int i = 0; i < errBytes.length; i++) {
+                if (errBytes[i] == 0) {
+                    msgLen = i;
+                    break;
+                }
+            }
+        } else {
+            msgLen = orStream.receiveInteger4();
+            int msgByteLen = msgLen % 4 == 0 ? msgLen : msgLen + (4 - msgLen % 4);
+            if (msgByteLen > maxLen) {
+                throw new SQLException("message length error.");
+            }
+            errBytes = orStream.receive(msgByteLen);
+        }
+
         String err = new String(errBytes, 0, msgLen, charset);
         throw new PSQLException(GT.tr(err), PSQLState.CONNECTION_FAILURE);
     }
@@ -437,6 +453,7 @@ public class ORConnectionHandler {
             orStream.setCapacity(orStream.receiveInteger4());
             int serverVersion = orStream.receiveInteger4();
             orStream.setServerVersion(serverVersion);
+            orStream.setHandshake(true);
             rem -= 8;
             int contentLen = orStream.receiveInteger4();
             this.scramble = orStream.receive(contentLen);

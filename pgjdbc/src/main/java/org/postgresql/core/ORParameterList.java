@@ -20,6 +20,7 @@ import org.postgresql.util.PSQLException;
 import org.postgresql.util.PSQLState;
 
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.Arrays;
 
 /**
@@ -29,11 +30,23 @@ import java.util.Arrays;
  * @since  2025-06-29
  */
 public class ORParameterList {
+    /**
+     * in param flag
+     */
+    public static final int IN_FLAG = 64;
+
+    /**
+     * out param flag
+     */
+    public static final int OUT_FLAG = 128;
+
     private Object[] paramValues;
     private byte[][] byteValues;
     private int[] dbTypes;
     private int paramCount;
     private boolean[] paramNoNull;
+    private int[] inOut;
+    private int totalOutParam;
 
     /**
      * parameter list constructor
@@ -45,6 +58,7 @@ public class ORParameterList {
         this.byteValues = new byte[paramCount][];
         this.dbTypes = new int[paramCount];
         this.paramNoNull = new boolean[paramCount];
+        this.inOut = new int[paramCount];
         this.paramCount = paramCount;
     }
 
@@ -68,9 +82,11 @@ public class ORParameterList {
      * @throws SQLException if a database access error occurs
      */
     public void bindParam(ORStream orStream, int index, int dbType, Object paramValue) throws SQLException {
+        verifyIndex(index);
         this.dbTypes[index - 1] = dbType;
         this.paramValues[index - 1] = paramValue;
         this.paramNoNull[index - 1] = true;
+        this.inOut[index - 1] = this.inOut[index - 1] | IN_FLAG;
         if (paramValue == null) {
             byteValues[index - 1] = new byte[0];
             return;
@@ -115,6 +131,76 @@ public class ORParameterList {
     }
 
     /**
+     * bind param type
+     *
+     * @param index index
+     * @param sqlType sqlType
+     * @throws SQLException if a database access error occurs
+     */
+    public void bindType(int index, int sqlType) throws SQLException {
+        verifyIndex(index);
+        int dbType = getDbType(sqlType);
+        this.paramNoNull[index - 1] = true;
+        if ((inOut[index - 1] & IN_FLAG) == 0) {
+            this.dbTypes[index - 1] = dbType;
+        }
+        totalOutParam++;
+        inOut[index - 1] = inOut[index - 1] | OUT_FLAG;
+    }
+
+    private int getDbType(int sqlType) {
+        switch (sqlType) {
+            case Types.REAL:
+            case Types.FLOAT:
+            case Types.DOUBLE:
+                return ORDataType.REAL;
+            case Types.NUMERIC:
+                return ORDataType.NUMERIC;
+            case Types.DECIMAL:
+                return ORDataType.DECIMAL;
+            case Types.VARCHAR:
+                return ORDataType.TEXT;
+            case Types.CLOB:
+            case Types.LONGVARCHAR:
+                return ORDataType.CLOB;
+            case Types.BLOB:
+            case Types.LONGVARBINARY:
+                return ORDataType.BLOB;
+            case Types.CHAR:
+                return ORDataType.CHAR;
+            case Types.BOOLEAN:
+                return ORDataType.BOOL;
+            case Types.BINARY:
+                return ORDataType.BINARY;
+            case Types.VARBINARY:
+                return ORDataType.VARBINARY;
+            case Types.BIT:
+            case Types.INTEGER:
+            case Types.TINYINT:
+            case Types.SMALLINT:
+                return ORDataType.INT;
+            case Types.BIGINT:
+                return ORDataType.BIGINT;
+            case Types.DATE:
+                return ORDataType.DATE;
+            case Types.TIMESTAMP:
+                return ORDataType.TIMESTAMP;
+            case Types.TIMESTAMP_WITH_TIMEZONE:
+                return ORDataType.TIMESTAMP_TZ;
+            case Types.ARRAY:
+                return ORDataType.VARCHAR;
+            case Types.REF_CURSOR:
+                return ORDataType.REF_CURSOR;
+            case Types.NULL:
+                return ORDataType.VARCHAR;
+            case Types.OTHER:
+                return ORDataType.UNSPECIFIED;
+            default:
+                return ORDataType.VARCHAR;
+        }
+    }
+
+    /**
      * Convert db type
      *
      * @param orStream orStream
@@ -123,6 +209,7 @@ public class ORParameterList {
      * @throws SQLException if a database access error occurs
      */
     public void transferType(ORStream orStream, int paramIndex, int targetType) throws SQLException {
+        verifyIndex(paramIndex + 1);
         dbTypes[paramIndex] = targetType;
         switch (targetType) {
             case ORDataType.INT:
@@ -169,6 +256,12 @@ public class ORParameterList {
         }
     }
 
+    private void verifyIndex(int index) throws SQLException {
+        if (index < 1 || index > paramCount) {
+            throw new SQLException("The column index is out of range: " + index + ", number of columns: " + paramCount);
+        }
+    }
+
     private byte[] getParamBytes(ORStream orStream, byte[] data) {
         byte[] lenByte = orStream.getInteger4Bytes(data.length);
         byte[] dataByte = data;
@@ -194,6 +287,15 @@ public class ORParameterList {
         for (int i = 0; i < srcByte.length; i++) {
             destByte[i + destPos] = srcByte[i];
         }
+    }
+
+    /**
+     * Is it a stored procedure
+     *
+     * @return has out param
+     */
+    public boolean isProcedure() {
+        return totalOutParam > 0;
     }
 
     /**
@@ -227,6 +329,24 @@ public class ORParameterList {
      */
     public Object[] getParamValues() {
         return paramValues;
+    }
+
+    /**
+     * get param type
+     *
+     * @return param type
+     */
+    public int[] getInOut() {
+        return inOut;
+    }
+
+    /**
+     * get out param count
+     *
+     * @return out param count
+     */
+    public int getTotalOutParam() {
+        return totalOutParam;
     }
 
     /**
