@@ -48,7 +48,6 @@ import java.util.TimeZone;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Locale;
@@ -70,20 +69,40 @@ import java.net.URL;
  * @since  2025-06-29
  */
 public class ORResultSet extends PgResultSet {
+    private static final int SEGMENT_LENGTH = 13;
+
+    /**
+     * statement
+     */
+    protected ORStatement statement;
+
+    /**
+     * fields
+     */
+    protected ORField[] orFields;
+
+    /**
+     * data rows
+     */
+    protected List<byte[][]> dataRows;
+
+    /**
+     * values length
+     */
+    protected List<int[]> valueLens;
+
+    /**
+     * has remaining rows
+     */
+    protected boolean hasRemain;
     private final int resultSetType;
     private final int resultsetconcurrency;
-
-    private ORStatement statement;
     private String sql;
     private TimeZone defaultTimeZone;
     private ORBaseConnection connection;
     private boolean isInsertRow = false;
-    private ORField[] orFields;
     private int totalRows;
-    private List<int[]> valueLens;
     private boolean isClosed;
-    private List<byte[][]> dataRows;
-    private boolean hasRemain;
     private int currentRow = -1;
     private Map<String, Integer> columnNameIndexMap;
 
@@ -116,6 +135,64 @@ public class ORResultSet extends PgResultSet {
         if (orStatement.getConnection() instanceof ORBaseConnection) {
             this.connection = (ORBaseConnection) orStatement.getConnection();
         }
+    }
+
+    /**
+     * resultSet constructor
+     *
+     * @param orStatement statement
+     * @param fields fields
+     * @param valueLens values length
+     * @param dataRows data rows
+     * @throws SQLException if a database access error occurs
+     */
+    public ORResultSet(ORStatement orStatement, ORField[] fields, List<int[]> valueLens,
+                       List<byte[][]> dataRows) throws SQLException {
+        super();
+        this.currentRow = 0;
+        this.statement = orStatement;
+        this.valueLens = valueLens;
+        this.dataRows = dataRows;
+        this.orFields = fields;
+        this.totalRows = dataRows.size();
+        this.resultSetType = orStatement.getResultSetType();
+        this.resultsetconcurrency = orStatement.getResultSetConcurrency();
+        if (orStatement.getConnection() instanceof ORBaseConnection) {
+            this.connection = (ORBaseConnection) orStatement.getConnection();
+        }
+    }
+
+    /**
+     * resultSet constructor
+     *
+     * @param orStatement statement
+     * @throws SQLException if a database access error occurs
+     */
+    public ORResultSet(ORStatement orStatement) throws SQLException {
+        this.statement = orStatement;
+        this.resultSetType = orStatement.getResultSetType();
+        this.resultsetconcurrency = orStatement.getResultSetConcurrency();
+        if (orStatement.getConnection() instanceof ORBaseConnection) {
+            this.connection = (ORBaseConnection) orStatement.getConnection();
+        }
+    }
+
+    /**
+     * get fields
+     *
+     * @return fields
+     */
+    public ORField[] getOrFields() {
+        return orFields;
+    }
+
+    /**
+     * get values length
+     *
+     * @return values length
+     */
+    public List<int[]> getValueLens() {
+        return valueLens;
     }
 
     /**
@@ -178,20 +255,18 @@ public class ORResultSet extends PgResultSet {
         if (isMinus) {
             value.append('-');
         }
-        List<Integer> segments = new ArrayList<>();
-        int i = 1;
+        int[] segments = new int[SEGMENT_LENGTH];
         int segmentCount = byteValue[0] / 2;
+        int segment0 = connection.getORStream().bytesToShort(byteValue, 2);
+        segments[0] = segment0;
+        value.append(segment0);
+        if (segmentCount > 1) {
+            value.append(".");
+        }
+        int i = 2;
         while (i <= segmentCount) {
             int segment = connection.getORStream().bytesToShort(byteValue, i * 2);
-            segments.add(segment);
-            if (i == 1) {
-                value.append(segment);
-                if (segmentCount > 1) {
-                    value.append(".");
-                }
-                i++;
-                continue;
-            }
+            segments[i - 1] = segment;
             value.append(segment);
             i++;
         }
@@ -201,7 +276,7 @@ public class ORResultSet extends PgResultSet {
             value.append("E").append(e);
         }
 
-        int round = segments.get(0);
+        int round = segments[0];
         int mark = 0;
         if (round >= 10000) {
             mark = 5;
@@ -609,7 +684,12 @@ public class ORResultSet extends PgResultSet {
         return hasNext;
     }
 
-    private boolean hasNext() {
+    /**
+     * has next
+     *
+     * @return has next
+     */
+    protected boolean hasNext() {
         boolean hasNext = false;
         if (currentRow + 1 < totalRows) {
             hasNext = true;
@@ -784,18 +864,29 @@ public class ORResultSet extends PgResultSet {
     private long handleNum(int columnIndex) throws SQLException {
         ORField fieldDef = this.orFields[columnIndex - 1];
         int dbType = Integer.parseInt(fieldDef.getTypeInfo()[1].toString());
-        long value = 0L;
         byte[] bv = getByteValue(columnIndex);
-        if (dbType == ORDataType.INT) {
-            value = connection.getORStream().bytesToInt(bv);
-        } else if (dbType == ORDataType.BIGINT) {
-            value = connection.getORStream().bytesToLong(bv);
-        } else if (dbType == ORDataType.UINT) {
-            value = connection.getORStream().bytesToUint(bv);
-        } else {
-            throw new SQLException("conversion to int type from " + fieldDef.getTypeInfo()[0] + " is not supported.");
+        switch (dbType) {
+            case ORDataType.INT:
+                return connection.getORStream().bytesToInt(bv);
+            case ORDataType.BIGINT:
+            case ORDataType.REF_CURSOR:
+                return connection.getORStream().bytesToLong(bv);
+            case ORDataType.UINT:
+                return connection.getORStream().bytesToUint(bv);
+            case ORDataType.REAL:
+                double dv = getReal(columnIndex);
+                return Integer.parseInt(String.valueOf(dv));
+            case ORDataType.NUMBER2:
+                String decimal = getDecimal(columnIndex);
+                return Integer.parseInt(decimal);
+            case ORDataType.NUMERIC:
+            case ORDataType.DECIMAL:
+                String num = getNumber(columnIndex);
+                return Integer.parseInt(num);
+            default:
+                throw new SQLException("conversion to int type from " + fieldDef.getTypeInfo()[0]
+                        + " is not supported.");
         }
-        return value;
     }
 
     @Override
@@ -1100,24 +1191,6 @@ public class ORResultSet extends PgResultSet {
     @Override
     public Time getTime(int columnIndex) throws SQLException {
         return getTime(columnIndex, null);
-    }
-
-    private int findColumnIndex(String columnName) {
-        Integer col = columnNameIndexMap.get(columnName);
-        if (col != null) {
-            return col;
-        }
-        col = columnNameIndexMap.get(columnName.toLowerCase(Locale.US));
-        if (col != null) {
-            columnNameIndexMap.put(columnName, col);
-            return col;
-        }
-        col = columnNameIndexMap.get(columnName.toUpperCase(Locale.US));
-        if (col != null) {
-            columnNameIndexMap.put(columnName, col);
-            return col;
-        }
-        return 0;
     }
 
     private String getORType(int column) {

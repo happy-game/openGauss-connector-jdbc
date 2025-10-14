@@ -11,6 +11,7 @@ import org.postgresql.core.ORBaseConnection;
 import org.postgresql.core.ORCachedQuery;
 import org.postgresql.core.ORField;
 import org.postgresql.core.ORParameterList;
+import org.postgresql.core.OutParams;
 import org.postgresql.util.GT;
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.PSQLState;
@@ -59,6 +60,11 @@ public class ORStatement implements Statement {
     protected ResultSet rs = null;
 
     /**
+     * the callable results
+     */
+    protected ORResultSet callableRs = null;
+
+    /**
      * parameter list in batch execution
      */
     protected List<ORParameterList> parametersList = null;
@@ -93,15 +99,31 @@ public class ORStatement implements Statement {
      */
     protected ResultSet generatedKeys = null;
 
-    private int queryMode;
+    /**
+     * out params
+     */
+    protected OutParams outParams;
+
+    /**
+     * statement id
+     */
+    protected int mark = -1;
+
+    /**
+     * queryMode
+     */
+    protected int queryMode;
+
+    /**
+     * cursorIds
+     */
+    protected List<Long> cursorSets = new LinkedList();
     private int updateCount;
     private int queryFlag;
-    private List<Long> cursorSets = new LinkedList();
     private ORField[] field;
     private int rsIndex = 0;
     private volatile boolean isClosed;
     private int fetchSize;
-    private int mark = -1;
 
     /**
      * statement constructor
@@ -215,9 +237,36 @@ public class ORStatement implements Statement {
         return this.queryMode;
     }
 
+    /**
+     * set callable ResultSet
+     *
+     * @param callableRs callable ResultSet
+     */
+    public void setCallableRs(ORResultSet callableRs) {
+        this.callableRs = callableRs;
+    }
+
     @Override
     public int getUpdateCount() {
         return this.updateCount;
+    }
+
+    /**
+     * get out params
+     *
+     * @return out params
+     */
+    public OutParams getOutParams() {
+        return this.outParams;
+    }
+
+    /**
+     * set out params
+     *
+     * @param outParams out params
+     */
+    public void setOutParams(OutParams outParams) {
+        this.outParams = outParams;
     }
 
     /**
@@ -447,6 +496,15 @@ public class ORStatement implements Statement {
         return connection;
     }
 
+    /**
+     * add cursor
+     *
+     * @param cursorId cursorId
+     */
+    public void addCursor(long cursorId) {
+        cursorSets.add(cursorId);
+    }
+
     @Override
     public ResultSet getGeneratedKeys() throws SQLException {
         verifyClosed();
@@ -483,9 +541,12 @@ public class ORStatement implements Statement {
         init();
         generatedKeys = null;
         connection.getQueryExecutor().execute(cachedQuery, batchParameters);
-        resultSets.add(cachedQuery.getRs());
+        ResultSet resultSet = cachedQuery.getRs();
+        if (resultSet != null) {
+            resultSets.add(resultSet);
+            this.rs = resultSet;
+        }
         rsIndex = resultSets.size() - 1;
-        this.rs = cachedQuery.getRs();
     }
 
     @Override

@@ -62,6 +62,7 @@ public class ORStream implements Closeable, Flushable {
     private int requestCount;
     private Socket socket;
     private int serverVersion;
+    private int version;
     private int requestFlag;
     private int capacity;
     private boolean isBigEndian;
@@ -73,6 +74,7 @@ public class ORStream implements Closeable, Flushable {
     private int sessionId;
     private int sessionNumber;
     private ORPackageHead packageHead;
+    private boolean isHandshake;
 
     /**
      * input/output stream constructor
@@ -80,6 +82,8 @@ public class ORStream implements Closeable, Flushable {
      * @param hostSpec host address
      */
     public ORStream(HostSpec hostSpec) {
+        this.isHandshake = false;
+        this.serverVersion = 36;
         this.packageHead = new ORPackageHead();
         this.charset = Charset.forName("UTF-8");
         this.socketAddress = new InetSocketAddress(hostSpec.getHost(), hostSpec.getPort());
@@ -121,6 +125,42 @@ public class ORStream implements Closeable, Flushable {
      */
     public String getLocalAddress() {
         return localAddress;
+    }
+
+    /**
+     * Is it handshake
+     *
+     * @return is handshake
+     */
+    public boolean isHandshake() {
+        return isHandshake;
+    }
+
+    /**
+     * set isHandshake
+     *
+     * @param isHandshake is handshake
+     */
+    public void setHandshake(boolean isHandshake) {
+        this.isHandshake = isHandshake;
+    }
+
+    /**
+     * get version
+     *
+     * @return version
+     */
+    public int getVersion() {
+        return version;
+    }
+
+    /**
+     * set version
+     *
+     * @param version version
+     */
+    public void setVersion(int version) {
+        this.version = version;
     }
 
     /**

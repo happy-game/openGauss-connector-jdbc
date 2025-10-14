@@ -164,6 +164,11 @@ public class ORDataType {
      */
     public static final int DATE_DAY_HMS = 22;
 
+    /**
+     * dbtype cursor
+     */
+    public static final int REF_CURSOR = 15;
+
     private static List<Object[]> types = new ArrayList<>();
     private static HashMap<Integer, Object[]> dbToType = new HashMap<>();
     private static HashMap<Integer, Integer> dbToJavaType = new HashMap<>();
@@ -203,6 +208,7 @@ public class ORDataType {
         types.add(new Object[]{"UTC", UTC, Types.TIMESTAMP, "java.sql.Timestamp"});
         types.add(new Object[]{"TIME", TIME, Types.TIME, "java.sql.Time"});
         types.add(new Object[]{"ARRAY", ARRAY, Types.ARRAY, "java.sql.Array"});
+        types.add(new Object[]{"REF_CURSOR", REF_CURSOR, Types.REF_CURSOR, "java.sql.ResultSet"});
         types.add(new Object[]{"UNSPECIFIED", UNSPECIFIED, Types.OTHER, "java.lang.Object"});
     }
 
