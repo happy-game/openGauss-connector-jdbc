@@ -554,7 +554,7 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
         offset += 2;
         byte[] errBytes;
         int protocolVersion = orStream.getServerVersion();
-        if (orStream.isHandshake()) {
+        if (!orStream.isHandshake()) {
             protocolVersion = orStream.getVersion();
         }
         int msgLen = 0;
@@ -569,11 +569,14 @@ public class ORQueryExecutorImpl implements ORQueryExecutor {
             }
         } else {
             msgLen = orStream.receiveInteger4();
+            maxLen -= 4;
             int msgByteLen = msgLen % 4 == 0 ? msgLen : msgLen + (4 - msgLen % 4);
             if (msgByteLen > maxLen) {
                 throw new SQLException("message length error.");
             }
             errBytes = orStream.receive(msgByteLen);
+            maxLen -= msgByteLen;
+            orStream.receive(maxLen);
         }
 
         String errorMsg = new String(errBytes, 0, msgLen, orStream.getCharset());
