@@ -107,15 +107,13 @@ public class ORConnectionHandler {
 
         int version = orStream.receiveChar();
         orStream.setVersion(version);
-        int reponseFlag = orStream.receiveInteger2();
-        orStream.setRequestFlag(reponseFlag);
+        int requestFlag = orStream.receiveInteger2() | 1;
+        orStream.setRequestFlag(requestFlag);
 
         this.clientKey = new byte[32];
         new SecureRandom().nextBytes(this.clientKey);
         int capacity = 0;
         orStream.setCapacity(capacity);
-        int requestFlag = orStream.getRequestFlag();
-        orStream.setRequestFlag(requestFlag);
         try {
             sendHandshakeQuery();
             processResults(false);
@@ -411,11 +409,14 @@ public class ORConnectionHandler {
             }
         } else {
             msgLen = orStream.receiveInteger4();
+            maxLen -= 4;
             int msgByteLen = msgLen % 4 == 0 ? msgLen : msgLen + (4 - msgLen % 4);
             if (msgByteLen > maxLen) {
                 throw new SQLException("message length error.");
             }
             errBytes = orStream.receive(msgByteLen);
+            maxLen -= msgByteLen;
+            orStream.receive(maxLen);
         }
 
         String err = new String(errBytes, 0, msgLen, charset);
@@ -428,14 +429,15 @@ public class ORConnectionHandler {
         int sessionNumber = orStream.receiveInteger4();
         orStream.setSessionNumber(sessionNumber);
         orStream.receiveInteger4();
-        int charsetId = orStream.receiveInteger4();
-        if (charsetId == 0) {
-            orStream.setCharset(Charset.forName("UTF-8"));
-        } else if (charsetId == 1) {
-            orStream.setCharset(Charset.forName("GBK"));
+        int charsetFlag = orStream.receiveInteger4();
+        if (charsetFlag == 1) {
+            charset = Charset.forName("GBK");
+        } else if (charsetFlag == 0) {
+            charset = Charset.forName("UTF-8");
         } else {
             throw new SQLException("server charset error, the charset can only be UTF-8 and GBK.");
         }
+        orStream.setCharset(charset);
 
         int contentLen = orStream.receiveInteger4();
         byte[] signingKey = orStream.receive(contentLen);
