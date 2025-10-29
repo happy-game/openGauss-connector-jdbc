@@ -23,6 +23,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * callable out param
@@ -31,12 +33,14 @@ import java.util.ArrayList;
  * @since  2025-09-29
  */
 public class OutParams {
-    private static final int PARAM_NAME_LEN = 68;
-    private static final int COLUMNS_THRESHOLD = 13;
-    private static final int LEN_OPERATION = 16777200;
+    private static final Map<Integer, Integer> indexMap = new HashMap<>();
+    private static final Map<String, Integer> nameMap = new HashMap<>();
     private static final int BYTE0_SIGN = 0;
     private static final int BYTE4_SIGN = 1;
     private static final int BYTE8_SIGN = 2;
+    private static final int PARAM_NAME_LEN = 68;
+    private static final int COLUMNS_THRESHOLD = 13;
+    private static final int LEN_OPERATION = 16777200;
 
     private int totalParam;
     private ORStatement statement;
@@ -68,13 +72,30 @@ public class OutParams {
         int paramCount = 0;
         List<ORParameterList> parameterLists = this.statement.getParametersList();
         if (parameterLists != null && !parameterLists.isEmpty()) {
-            paramCount = parameterLists.get(0).getTotalOutParam();
+            ORParameterList params = parameterLists.get(0);
+            paramCount = params.getTotalOutParam();
+            handleParamMap(params);
         }
         if (paramCount != this.totalParam) {
             throw new SQLException("total out parameter is unexpected. expected "
                     + paramCount + " but " + this.totalParam);
         }
         this.statement.setOutParams(this);
+    }
+
+    private void handleParamMap(ORParameterList params) {
+        int index = 0;
+        List<Integer> outParam = params.getOutParam();
+        indexMap.clear();
+        nameMap.clear();
+        for (int i = 0; i < params.getParamCount(); i++) {
+            if (outParam.contains(i + 1)) {
+                indexMap.put(i + 1, index + 1);
+                String columnName = this.fields[index].getColumnName();
+                nameMap.put(columnName, i + 1);
+                index++;
+            }
+        }
     }
 
     private void handleFields() throws IOException {
@@ -106,6 +127,34 @@ public class OutParams {
         }
         byte[] columnNameBytes = Arrays.copyOfRange(bytes, 0, endIndex);
         return new String(columnNameBytes, orStream.getCharset());
+    }
+
+    /**
+     * getOutParamIndex
+     *
+     * @param parameterIndex parameterIndex
+     * @return outParamIndex
+     * @throws SQLException if a database access error occurs
+     */
+    public int getOutParamIndex(int parameterIndex) throws SQLException {
+        if (!indexMap.containsKey(parameterIndex)) {
+            throw new SQLException("parameterIndex " + parameterIndex + " is invalid.");
+        }
+        return indexMap.get(parameterIndex);
+    }
+
+    /**
+     * getParameterIndex
+     *
+     * @param parameterName parameterName
+     * @return parameterIndex
+     * @throws SQLException if a database access error occurs
+     */
+    public int getParameterIndex(String parameterName) throws SQLException {
+        if (!nameMap.containsKey(parameterName)) {
+            throw new SQLException("parameterName " + parameterName + " is invalid.");
+        }
+        return nameMap.get(parameterName);
     }
 
     /**

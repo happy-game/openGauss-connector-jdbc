@@ -30,6 +30,7 @@ import java.sql.NClob;
 import java.sql.SQLXML;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -90,188 +91,188 @@ public class ORCallableStatement extends ORPreparedStatement implements Callable
 
     @Override
     public String getString(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getString(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getString(outParamIndex);
     }
 
     @Override
     public boolean getBoolean(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getBoolean(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getBoolean(outParamIndex);
     }
 
     @Override
     public byte getByte(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getByte(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getByte(outParamIndex);
     }
 
     @Override
     public short getShort(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getShort(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getShort(outParamIndex);
     }
 
-    private void checkCallableRs(int parameterIndex) throws SQLException {
-        if (callableRs == null) {
-            throw new SQLException("ResultSet is null.");
+    private int getOutParamIndex(int parameterIndex) throws SQLException {
+        if (outParams == null) {
+            throw new SQLException("outParams is null.");
         }
-        callableRs.checkResultSet(parameterIndex);
+        return outParams.getOutParamIndex(parameterIndex);
     }
 
     @Override
     public int getInt(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getInt(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getInt(outParamIndex);
     }
 
     @Override
     public long getLong(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getLong(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getLong(outParamIndex);
     }
 
     @Override
     public float getFloat(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getFloat(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getFloat(outParamIndex);
     }
 
     @Override
     public double getDouble(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getDouble(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getDouble(outParamIndex);
     }
 
     @Override
     public BigDecimal getBigDecimal(int parameterIndex, int scale) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return this.getBigDecimal(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return this.getBigDecimal(outParamIndex);
     }
 
     @Override
     public byte[] getBytes(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getBytes(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getBytes(outParamIndex);
     }
 
     @Override
     public Date getDate(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getDate(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getDate(outParamIndex);
     }
 
     @Override
     public Time getTime(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getTime(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getTime(outParamIndex);
     }
 
     @Override
     public Timestamp getTimestamp(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getTimestamp(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getTimestamp(outParamIndex);
     }
 
     @Override
     public Object getObject(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
         ORField[] orFields = callableRs.getOrFields();
-        Object[] type = orFields[parameterIndex - 1].getTypeInfo();
+        Object[] type = orFields[outParamIndex - 1].getTypeInfo();
         int dbType = Integer.parseInt(type[1].toString());
         if (dbType == ORDataType.REF_CURSOR) {
             List<int[]> valueLens = callableRs.getValueLens();
             if (valueLens == null || valueLens.isEmpty()) {
                 throw new SQLException("callable value is null.");
             }
-            int cursorLen = valueLens.get(0)[parameterIndex - 1];
+            int cursorLen = valueLens.get(0)[outParamIndex - 1];
             if (cursorLen < 0) {
                 throw new SQLException("cursor is invalid.");
             }
-            long cursorId = callableRs.getLong(parameterIndex);
+            long cursorId = callableRs.getLong(outParamIndex);
             return getRefCursor(cursorId);
         }
-        return callableRs.getObject(parameterIndex);
+        return callableRs.getObject(outParamIndex);
     }
 
     @Override
     public BigDecimal getBigDecimal(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getBigDecimal(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getBigDecimal(outParamIndex);
     }
 
     @Override
     public Object getObject(int parameterIndex, Map<String, Class<?>> map) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getObject(parameterIndex, map);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getObject(outParamIndex, map);
     }
 
     @Override
     public Ref getRef(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getRef(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getRef(outParamIndex);
     }
 
     @Override
     public Blob getBlob(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getBlob(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getBlob(outParamIndex);
     }
 
     @Override
     public Clob getClob(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getClob(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getClob(outParamIndex);
     }
 
     @Override
     public Array getArray(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getArray(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getArray(outParamIndex);
     }
 
     @Override
     public Date getDate(int parameterIndex, Calendar cal) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getDate(parameterIndex, cal);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getDate(outParamIndex, cal);
     }
 
     @Override
     public Time getTime(int parameterIndex, Calendar cal) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getTime(parameterIndex, cal);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getTime(outParamIndex, cal);
     }
 
     @Override
     public Timestamp getTimestamp(int parameterIndex, Calendar cal) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getTimestamp(parameterIndex, cal);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getTimestamp(outParamIndex, cal);
     }
 
-    private void checkIndex(int parameterIndex) {
+    private void updateIndex(int parameterIndex) {
         this.currentIndex = parameterIndex;
     }
 
@@ -297,9 +298,9 @@ public class ORCallableStatement extends ORPreparedStatement implements Callable
 
     @Override
     public URL getURL(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return callableRs.getURL(parameterIndex);
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return callableRs.getURL(outParamIndex);
     }
 
     @Override
@@ -429,99 +430,106 @@ public class ORCallableStatement extends ORPreparedStatement implements Callable
 
     @Override
     public String getString(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getString(index);
     }
 
     @Override
     public boolean getBoolean(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getBoolean(index);
     }
 
     @Override
     public byte getByte(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getByte(index);
     }
 
     @Override
     public short getShort(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getShort(index);
     }
 
     @Override
     public int getInt(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getInt(index);
     }
 
     @Override
     public long getLong(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getLong(index);
     }
 
     @Override
     public float getFloat(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getFloat(index);
     }
 
     @Override
     public double getDouble(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getDouble(index);
     }
 
     @Override
     public byte[] getBytes(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getBytes(index);
     }
 
     @Override
     public Date getDate(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getDate(index);
     }
 
     @Override
     public Time getTime(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getTime(index);
     }
 
     @Override
     public Timestamp getTimestamp(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getTimestamp(index);
     }
 
     @Override
     public Object getObject(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getObject(index);
+    }
+
+    private int getParameterIndex(String parameterName) throws SQLException {
+        if (outParams == null) {
+            throw new SQLException("outParams is null.");
+        }
+        return outParams.getParameterIndex(parameterName.toUpperCase(Locale.ENGLISH));
     }
 
     @Override
     public BigDecimal getBigDecimal(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getBigDecimal(index);
     }
 
@@ -537,15 +545,15 @@ public class ORCallableStatement extends ORPreparedStatement implements Callable
 
     @Override
     public Blob getBlob(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getBlob(index);
     }
 
     @Override
     public Clob getClob(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getClob(index);
     }
 
@@ -556,22 +564,22 @@ public class ORCallableStatement extends ORPreparedStatement implements Callable
 
     @Override
     public Date getDate(String parameterName, Calendar cal) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getDate(index);
     }
 
     @Override
     public Time getTime(String parameterName, Calendar cal) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getTime(index);
     }
 
     @Override
     public Timestamp getTimestamp(String parameterName, Calendar cal) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getTimestamp(index);
     }
 
@@ -672,15 +680,15 @@ public class ORCallableStatement extends ORPreparedStatement implements Callable
 
     @Override
     public Reader getCharacterStream(int parameterIndex) throws SQLException {
-        checkCallableRs(parameterIndex);
-        checkIndex(parameterIndex);
-        return new StringReader(callableRs.getString(parameterIndex));
+        int outParamIndex = getOutParamIndex(parameterIndex);
+        updateIndex(outParamIndex);
+        return new StringReader(callableRs.getString(outParamIndex));
     }
 
     @Override
     public Reader getCharacterStream(String parameterName) throws SQLException {
-        int index = callableRs.findColumn(parameterName);
-        checkIndex(index);
+        int index = getParameterIndex(parameterName);
+        updateIndex(index);
         return getCharacterStream(index);
     }
 
