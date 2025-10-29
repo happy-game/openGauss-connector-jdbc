@@ -21,7 +21,9 @@ import org.postgresql.util.PSQLState;
 
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * parameter info
@@ -47,6 +49,7 @@ public class ORParameterList {
     private boolean[] paramNoNull;
     private int[] inOut;
     private int totalOutParam;
+    private List<Integer> outParam;
 
     /**
      * parameter list constructor
@@ -60,6 +63,7 @@ public class ORParameterList {
         this.paramNoNull = new boolean[paramCount];
         this.inOut = new int[paramCount];
         this.paramCount = paramCount;
+        this.outParam = new ArrayList<>();
     }
 
     /**
@@ -70,6 +74,15 @@ public class ORParameterList {
      */
     public byte[] getByteValue(int index) {
         return byteValues[index];
+    }
+
+    /**
+     * getOutParam
+     *
+     * @return outParam
+     */
+    public List<Integer> getOutParam() {
+        return outParam;
     }
 
     /**
@@ -145,6 +158,7 @@ public class ORParameterList {
             this.dbTypes[index - 1] = dbType;
         }
         totalOutParam++;
+        outParam.add(index);
         inOut[index - 1] = inOut[index - 1] | OUT_FLAG;
     }
 
