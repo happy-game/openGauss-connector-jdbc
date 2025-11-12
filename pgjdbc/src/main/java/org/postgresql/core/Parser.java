@@ -677,6 +677,7 @@ public class Parser {
             String upperQuery = queryArr[i].toUpperCase(Locale.ENGLISH);
             switch (upperQuery) {
                 case "PROCEDURE":
+                case "PROC":
                 case "FUNCTION":
                 case "DECLARE":
                 case "TRIGGER":
