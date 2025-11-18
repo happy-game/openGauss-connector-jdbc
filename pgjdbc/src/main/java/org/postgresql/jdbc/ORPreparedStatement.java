@@ -674,6 +674,10 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     @Override
     public void setDate(int index, Date x, Calendar cal) throws SQLException {
         verifyClosed();
+        if (x == null) {
+            setNull(index, Types.DATE);
+            return;
+        }
         Calendar c = cal == null ? Calendar.getInstance() : cal;
         long date = TimestampUtils.setDateToLong(x.getTime(), c);
         preparedParameters.bindParam(connection.getORStream(), index, ORDataType.DATE, date);
@@ -682,6 +686,10 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     @Override
     public void setTime(int index, Time x, Calendar cal) throws SQLException {
         verifyClosed();
+        if (x == null) {
+            setNull(index, Types.TIME);
+            return;
+        }
         Calendar c = cal == null ? Calendar.getInstance() : cal;
         long time = TimestampUtils.setTimeToLong(x.getTime(), c);
         preparedParameters.bindParam(connection.getORStream(), index, ORDataType.TIME, time);
@@ -690,6 +698,10 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     @Override
     public void setTimestamp(int index, Timestamp x, Calendar cal) throws SQLException {
         verifyClosed();
+        if (x == null) {
+            setNull(index, Types.TIMESTAMP);
+            return;
+        }
         Calendar c = cal == null ? Calendar.getInstance() : cal;
         long timestamp = TimestampUtils.setTimestampToLong(x.getTime(), c);
         long value = x.getNanos() / 1000 % 1000 + timestamp;
@@ -811,6 +823,10 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     }
 
     private void setDate(int index, Object x) throws SQLException {
+        if (x == null) {
+            setNull(index, Types.DATE);
+            return;
+        }
         java.sql.Date value;
         if (x instanceof java.sql.Date) {
             value = (java.sql.Date) x;
@@ -823,6 +839,10 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     }
 
     private void setTime(int index, Object x) throws SQLException {
+        if (x == null) {
+            setNull(index, Types.TIME);
+            return;
+        }
         Time value;
         if (x instanceof java.sql.Time) {
             value = (java.sql.Time) x;
@@ -835,6 +855,10 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     }
 
     private void setTimestamp(int index, Object x) throws SQLException {
+        if (x == null) {
+            setNull(index, Types.TIMESTAMP);
+            return;
+        }
         java.sql.Timestamp value;
         if (x instanceof java.sql.Timestamp) {
             value = (java.sql.Timestamp) x;
@@ -873,6 +897,10 @@ public class ORPreparedStatement extends ORStatement implements PreparedStatemen
     }
 
     private void setArray(int index, Object x) throws SQLException {
+        if (x == null) {
+            setNull(index, Types.VARCHAR);
+            return;
+        }
         if (x instanceof Array) {
             setArray(index, (Array) x);
         } else {
