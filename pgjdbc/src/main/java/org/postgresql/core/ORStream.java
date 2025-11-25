@@ -604,6 +604,23 @@ public class ORStream implements Closeable, Flushable {
     }
 
     /**
+     * Convert bytes to int type based on offset
+     *
+     * @param bytes byte[]
+     * @param offset offset
+     * @return int type value
+     */
+    public int bytesToShortOffset(byte[] bytes, int offset) {
+        if (bytes == null || bytes.length < 2 + offset) {
+            throw new IllegalArgumentException("Byte array must have at least " + (2 + offset) + " elements");
+        }
+        if (isBigEndian) {
+            return ((bytes[offset] & 0xFF) << 8) | (bytes[1 + offset] & 0xFF);
+        }
+        return ((bytes[1 + offset] & 0xFF) << 8) | (bytes[offset] & 0xFF);
+    }
+
+    /**
      * Convert byte[2] to int type value
      *
      * @param bytes byte[2]
