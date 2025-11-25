@@ -44,6 +44,8 @@ public class TimestampUtils {
   private static final int LEAP_DAYS = 366;
   private static final int MONTH = 12;
   private static final int DAYS_PER_MONTH = 31;
+  private static final int HOUR_FLAG = 60;
+  private static final int MINUTES_FLAG = 60;
   private static final char[] ZEROS = {'0', '0', '0', '0', '0', '0', '0', '0', '0'};
   private static final char[][] NUMBERS;
   private static final HashMap<String, TimeZone> GMT_ZONES = new HashMap<String, TimeZone>();
@@ -1751,5 +1753,28 @@ public class TimestampUtils {
     int remainingMicrosec = (int) (ms % 1000000L);
     result.setNanos(remainingMicrosec * 1000);
     return result;
+  }
+
+  /**
+   * get timeZone based on timeZoneId
+   *
+   * @param timeZoneId timeZoneId
+   * @return offsetTimeZone
+   */
+  public static String getOffsetTimeZone(int timeZoneId) {
+    StringBuilder offsetTimeZone = new StringBuilder();
+    char sign = timeZoneId >= 0 ? '+' : '-';
+    offsetTimeZone.append(sign);
+    int formatTimeZoneId = Math.abs(timeZoneId);
+    int hour = formatTimeZoneId / HOUR_FLAG;
+    if (hour < 10) {
+      offsetTimeZone.append("0");
+    }
+    offsetTimeZone.append(hour).append(':');
+    int minutes = formatTimeZoneId % MINUTES_FLAG;
+    if (minutes < 10) {
+      offsetTimeZone.append("0");
+    }
+    return offsetTimeZone.append(minutes).toString();
   }
 }

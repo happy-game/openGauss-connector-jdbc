@@ -342,7 +342,9 @@ public class ORResultSet extends PgResultSet {
             return null;
         }
         Calendar calendar = cal == null ? getDefaultCalendar() : cal;
-        long value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
+        byte[] valueBytes = getByteValue(columnIndex);
+        long value = connection.getORStream().bytesToLong(valueBytes);
+        calendar = getCalendar(valueBytes, calendar);
         Timestamp result = connection.getTimestampUtils().getTimestamp(value, calendar);
         return new Date(((java.util.Date) result).getTime());
     }
@@ -380,8 +382,32 @@ public class ORResultSet extends PgResultSet {
             return null;
         }
         Calendar calendar = cal == null ? getDefaultCalendar() : cal;
-        long value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
+        byte[] valueBytes = getByteValue(columnIndex);
+        long value = connection.getORStream().bytesToLong(valueBytes);
+        calendar = getCalendar(valueBytes, calendar);
         return connection.getTimestampUtils().getTimestamp(value, calendar);
+    }
+
+    private String getTimestampTZ(int columnIndex, Calendar cal) throws SQLException {
+        checkResultSet(columnIndex);
+        if (wasNullFlag) {
+            return null;
+        }
+
+        int valueLen = getLen(columnIndex);
+        if (valueLen < 0) {
+            return null;
+        }
+        Calendar calendar = cal == null ? getDefaultCalendar() : cal;
+        byte[] valueBytes = getByteValue(columnIndex);
+        long value = connection.getORStream().bytesToLong(valueBytes);
+        Timestamp timestamp = connection.getTimestampUtils().getTimestamp(value, calendar);
+        if (valueBytes.length >= 10) {
+            int timeZoneId = connection.getORStream().bytesToShortOffset(valueBytes, 8);
+            String tz = connection.getTimestampUtils().getOffsetTimeZone(timeZoneId);
+            return timestamp.toString() + " " + tz;
+        }
+        return timestamp.toString();
     }
 
     @Override
@@ -585,9 +611,21 @@ public class ORResultSet extends PgResultSet {
             return null;
         }
         Calendar calendar = cal == null ? getDefaultCalendar() : cal;
-        long value = connection.getORStream().bytesToLong(getByteValue(columnIndex));
+        byte[] valueBytes = getByteValue(columnIndex);
+        long value = connection.getORStream().bytesToLong(valueBytes);
+        calendar = getCalendar(valueBytes, calendar);
         Timestamp result = connection.getTimestampUtils().getTimestamp(value, calendar);
         return new Time(((java.util.Date) result).getTime());
+    }
+
+    private Calendar getCalendar(byte[] valueBytes, Calendar calendar) {
+        if (calendar.getTimeZone().getRawOffset() == TimeZone.getDefault().getRawOffset()
+                && valueBytes.length >= 10) {
+            int timeZoneId = connection.getORStream().bytesToShortOffset(valueBytes, 8);
+            String tz = "GMT" + connection.getTimestampUtils().getOffsetTimeZone(timeZoneId);
+            return Calendar.getInstance(TimeZone.getTimeZone(tz));
+        }
+        return calendar;
     }
 
     @Override
@@ -757,6 +795,8 @@ public class ORResultSet extends PgResultSet {
                 return String.valueOf(getTime(columnIndex));
             case Types.TIMESTAMP:
                 return String.valueOf(getTimestamp(columnIndex, null));
+            case Types.TIMESTAMP_WITH_TIMEZONE:
+                return String.valueOf(getTimestampTZ(columnIndex, null));
             case Types.CLOB:
                 Clob value = this.getClob(columnIndex);
                 return value.getSubString(1, (int) value.length());
