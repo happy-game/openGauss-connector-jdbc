@@ -225,6 +225,9 @@ public class ORParameterList {
     public void transferType(ORStream orStream, int paramIndex, int targetType) throws SQLException {
         verifyIndex(paramIndex + 1);
         dbTypes[paramIndex] = targetType;
+        if (paramValues[paramIndex] == null) {
+            return;
+        }
         switch (targetType) {
             case ORDataType.INT:
                 int intValue = Integer.parseInt(paramValues[paramIndex].toString());
