@@ -338,7 +338,7 @@ public class MD5Digest {
             setBytes(scramble, tokenByte.length, salt, salt.length);
             byte[] sha256Key = generateSha256KeyFromPBKDF2(password, salt, iteration);
             conHandle.setSha256Key(sha256Key);
-            byte[] clientKey = getKeyFromHmac(sha256Key, "Zenith_Client_Key".getBytes("UTF-8"));
+            byte[] clientKey = getKeyFromHmac(sha256Key, "oGRAC_Client_Key".getBytes("UTF-8"));
             byte[] storedKey = sha256(clientKey);
             byte[] hmacResult = getKeyFromHmac(storedKey, tokenByte);
             byte[] key = new byte[tokenByte.length + hmacResult.length];
@@ -382,7 +382,7 @@ public class MD5Digest {
         setBytes(scramble, 0, tokenByte, tokenByte.length);
         byte[] key = null;
         try {
-            key = MD5Digest.getKeyFromHmac(sha256Key, "Zenith_Server_Key".getBytes("UTF-8"));
+            key = MD5Digest.getKeyFromHmac(sha256Key, "oGRAC_Server_Key".getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             throw new SQLException("generate server key failed");
         }
