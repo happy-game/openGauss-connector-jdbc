@@ -82,6 +82,7 @@ public class Driver implements java.sql.Driver {
     /* generate one log file */
     public static AtomicBoolean isLogFileCreated;
     private static final String[] SENSITIVE_CHARACTERS = {"sslpassword", "iamPassword", "password"};
+    private static final String UDS_HOST = "localhost";
 
     private static Tracer tracer;
     private static AtomicBoolean tracerInitialized = new AtomicBoolean(false);
@@ -773,6 +774,9 @@ public class Driver implements java.sql.Driver {
                     ports.append(portStr);
                     hosts.append(parseIPValid((String) address.subSequence(0, portIdx)));
                 } else {
+                    if (address.equalsIgnoreCase(UDS_HOST)) {
+                        urlProps.setProperty("UDS", "1");
+                    }
                     ports.append(DEFAULT_PORT);
                     hosts.append(parseIPValid(address));
                 }
