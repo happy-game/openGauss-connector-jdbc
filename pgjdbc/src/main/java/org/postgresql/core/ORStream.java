@@ -279,9 +279,14 @@ public class ORStream implements Closeable, Flushable {
      * @throws PSQLException if a database access error occurs
      */
     public void socketConnect(Properties properties) throws IOException, PSQLException {
-        channel = SocketChannel.open();
-        channel.configureBlocking(true);
-        Socket socketConn = channel.socket();
+        Socket socketConn;
+        if (properties.containsKey("UDS") && properties.getProperty("UDS").equals("1")) {
+            socketConn = SocketFactoryFactory.getUdsSocket(properties);
+        } else {
+            channel = SocketChannel.open();
+            channel.configureBlocking(true);
+            socketConn = channel.socket();
+        }
         if (!socketConn.isConnected()) {
             socketConn.connect(this.socketAddress, getTimeout(properties));
             this.localAddress = socketConn.getLocalAddress().toString();

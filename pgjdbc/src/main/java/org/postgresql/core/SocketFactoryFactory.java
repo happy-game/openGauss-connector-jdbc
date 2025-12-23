@@ -12,6 +12,10 @@ import org.postgresql.util.ObjectFactory;
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.PSQLState;
 
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.net.Socket;
 import java.util.Properties;
 
 import javax.net.SocketFactory;
@@ -70,4 +74,40 @@ public class SocketFactoryFactory {
     }
   }
 
+    /**
+     * instance SocketFactory and create uds socket
+     *
+     * @param properties connection properties
+     * @return Socket
+     * @throws IOException if an I/O error occurs
+     * @throws PSQLException if something goes wrong
+     */
+    public static Socket getUdsSocket(Properties properties) throws IOException, PSQLException {
+        ClassLoader loader = ORStream.class.getClassLoader();
+        String socketFactoryName = PGProperty.SOCKET_FACTORY.get(properties);
+        if (socketFactoryName == null) {
+            return SocketFactory.getDefault().createSocket();
+        }
+        String socketFactoryArg = PGProperty.SOCKET_FACTORY_ARG.get(properties);
+        Object factory;
+        try {
+            Class<?> cls = loader.loadClass(socketFactoryName);
+            Constructor<?> constructor = cls.getDeclaredConstructor(String.class);
+            factory = constructor.newInstance(socketFactoryArg);
+        } catch (InvocationTargetException
+                 | InstantiationException
+                 | IllegalAccessException
+                 | ClassNotFoundException
+                 | NoSuchMethodException e) {
+            throw new PSQLException(
+                    GT.tr("The SocketFactory class provided {0} could not be instantiated.",
+                            socketFactoryName), PSQLState.CONNECTION_FAILURE, e);
+        }
+
+        Socket socket = null;
+        if (factory instanceof SocketFactory) {
+            socket = ((SocketFactory) factory).createSocket();
+        }
+        return socket;
+    }
 }
