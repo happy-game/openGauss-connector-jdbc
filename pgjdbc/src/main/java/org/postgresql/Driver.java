@@ -807,7 +807,7 @@ public class Driver implements java.sql.Driver {
         }
 
         // parse the args part of the url
-        urlProps.putAll(praseParam(l_urlArgs));
+        urlProps.putAll(parseParam(l_urlArgs));
         if (urlProps.getProperty("enable_ce") != null && urlProps.getProperty("enable_ce").equals("1")) {
             urlProps.setProperty("CLIENTLOGIC", "1");
         }
@@ -824,7 +824,7 @@ public class Driver implements java.sql.Driver {
         String notSensitiveUrl = url;
         int paramStartIndex = notSensitiveUrl.indexOf("?");
         if (paramStartIndex != -1) {
-            LinkedHashMap<String, String> paramsMap = praseParam(notSensitiveUrl.substring(paramStartIndex + 1));
+            LinkedHashMap<String, String> paramsMap = parseParam(notSensitiveUrl.substring(paramStartIndex + 1));
             StringBuilder stringBuilder = new StringBuilder(notSensitiveUrl.substring(0, paramStartIndex) + "?");
             for (Map.Entry<String, String> entry : paramsMap.entrySet()) {
                 boolean isKeyword = false;
@@ -850,18 +850,18 @@ public class Driver implements java.sql.Driver {
      * @param urlArgs The parameter part in the connection string
      * @return parameter map
      */
-    private static LinkedHashMap<String, String> praseParam(String urlArgs) {
+    private static LinkedHashMap<String, String> parseParam(String urlArgs) {
         LinkedHashMap<String, String> paramsMap = new LinkedHashMap<>();
         String[] args = urlArgs.split("&");
         for (String token : args) {
             if (token.isEmpty()) {
                 continue;
             }
-            int l_pos = token.indexOf('=');
-            if (l_pos == -1) {
+            int pos = token.indexOf('=');
+            if (pos == -1) {
                 paramsMap.put(token, "");
             } else {
-                paramsMap.put(token.substring(0, l_pos), URLCoder.decode(token.substring(l_pos + 1)));
+                paramsMap.put(token.substring(0, pos), URLCoder.decode(token.substring(pos + 1)));
             }
         }
         return paramsMap;
