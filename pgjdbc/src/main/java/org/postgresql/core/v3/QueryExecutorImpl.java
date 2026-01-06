@@ -2521,7 +2521,7 @@ public class QueryExecutorImpl extends QueryExecutorBase {
 
     List<byte[][]> tuples = null;
     int lastPacketType=-1;
-    int recievedPacketType=-1;
+    int receivedPacketType = -1;
     int c;
     boolean endQuery = false;
     // At the end of a command execution we have the CommandComplete
@@ -2534,7 +2534,7 @@ public class QueryExecutorImpl extends QueryExecutorBase {
       boolean isRecvP = false;
       while (!endQuery) {
         c = pgStream.receiveChar();
-        recievedPacketType=c;
+        receivedPacketType = c;
         switch (c) {
           case 'K': //receive dbTime
             recordRecvTime();
@@ -2939,11 +2939,11 @@ public class QueryExecutorImpl extends QueryExecutorBase {
       }
       enableTrace = isRecvP;
     } catch(IOException e) {
-      LOGGER.error("IO Exception.recieved packetType:" + recievedPacketType + "last PacketType:" + lastPacketType
+      LOGGER.error("IO Exception.recieved packetType:" + receivedPacketType + "last PacketType:" + lastPacketType
               + "connection info:" + secSocketAddress + "buffer :\n" + pgStream.getInputBufferByHex());
       throw e;
     } finally {
-      lastPacketType = recievedPacketType;
+      lastPacketType = receivedPacketType;
     }
   }
 
