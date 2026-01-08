@@ -2939,7 +2939,7 @@ public class QueryExecutorImpl extends QueryExecutorBase {
       }
       enableTrace = isRecvP;
     } catch(IOException e) {
-      LOGGER.error("IO Exception.recieved packetType:" + receivedPacketType + "last PacketType:" + lastPacketType
+      LOGGER.error("IO Exception.received packetType:" + receivedPacketType + "last PacketType:" + lastPacketType
               + "connection info:" + secSocketAddress + "buffer :\n" + pgStream.getInputBufferByHex());
       throw e;
     } finally {
